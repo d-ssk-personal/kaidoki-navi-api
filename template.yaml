@@ -1,0 +1,378 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 買いどきナビ API
+
+Globals:
+  Function:
+    Timeout: 30
+    Runtime: python3.12
+    MemorySize: 256
+    Environment:
+      Variables:
+        PRODUCTS_TABLE_NAME: !Ref ProductsTable
+        PRICE_HISTORY_TABLE_NAME: !Ref PriceHistoryTable
+        USERS_TABLE_NAME: !Ref UsersTable
+        FAVORITES_TABLE_NAME: !Ref FavoritesTable
+        NOTIFICATION_SETTINGS_TABLE_NAME: !Ref NotificationSettingsTable
+        CATEGORIES_TABLE_NAME: !Ref CategoriesTable
+        JWT_SECRET_KEY: !Ref JWTSecretKey
+        LOG_LEVEL: INFO
+        ENVIRONMENT: !Ref Environment
+  Api:
+    Cors:
+      AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+      AllowHeaders: "'Content-Type,Authorization'"
+      AllowOrigin: "'*'"
+
+Parameters:
+  Environment:
+    Type: String
+    Default: development
+    AllowedValues:
+      - development
+      - staging
+      - production
+    Description: Environment name
+  
+  JWTSecretKey:
+    Type: String
+    NoEcho: true
+    Description: JWT secret key for token generation
+
+Resources:
+  # API Gateway
+  KaidokiNaviApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: v1
+      Cors:
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,Authorization'"
+        AllowOrigin: "'*'"
+
+  # Lambda Functions - Products
+  ProductsListFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: handlers.products.list_products
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref ProductsTable
+      Events:
+        ListProducts:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KaidokiNaviApi
+            Path: /products
+            Method: get
+
+  ProductGetFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: handlers.products.get_product
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref ProductsTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref PriceHistoryTable
+      Events:
+        GetProduct:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KaidokiNaviApi
+            Path: /products/{productId}
+            Method: get
+
+  PriceHistoryFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: handlers.products.get_price_history
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref ProductsTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref PriceHistoryTable
+      Events:
+        GetPriceHistory:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KaidokiNaviApi
+            Path: /products/{productId}/price-history
+            Method: get
+
+  # Lambda Functions - Categories
+  CategoriesListFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: handlers.categories.list_categories
+      Events:
+        ListCategories:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KaidokiNaviApi
+            Path: /categories
+            Method: get
+
+  # Lambda Functions - Favorites
+  FavoritesListFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: handlers.favorites.list_favorites
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref FavoritesTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref ProductsTable
+      Events:
+        ListFavorites:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KaidokiNaviApi
+            Path: /favorites
+            Method: get
+
+  FavoriteAddFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: handlers.favorites.add_favorite
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref FavoritesTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref ProductsTable
+      Events:
+        AddFavorite:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KaidokiNaviApi
+            Path: /favorites
+            Method: post
+
+  FavoriteRemoveFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: handlers.favorites.remove_favorite
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref FavoritesTable
+      Events:
+        RemoveFavorite:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KaidokiNaviApi
+            Path: /favorites/{productId}
+            Method: delete
+
+  # Lambda Functions - Notifications
+  NotificationSettingsGetFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: handlers.notifications.get_notification_settings
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref NotificationSettingsTable
+      Events:
+        GetSettings:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KaidokiNaviApi
+            Path: /notifications/settings
+            Method: get
+
+  NotificationSettingsUpdateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: handlers.notifications.update_notification_settings
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref NotificationSettingsTable
+      Events:
+        UpdateSettings:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KaidokiNaviApi
+            Path: /notifications/settings
+            Method: put
+
+  LineConnectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: handlers.notifications.connect_line
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref NotificationSettingsTable
+      Events:
+        ConnectLine:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KaidokiNaviApi
+            Path: /notifications/line/connect
+            Method: post
+
+  LineDisconnectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: handlers.notifications.disconnect_line
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref NotificationSettingsTable
+      Events:
+        DisconnectLine:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KaidokiNaviApi
+            Path: /notifications/line/disconnect
+            Method: post
+
+  # Lambda Functions - Contact
+  ContactSubmitFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: handlers.contact.submit_contact
+      Events:
+        SubmitContact:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KaidokiNaviApi
+            Path: /contact
+            Method: post
+
+  # DynamoDB Tables
+  ProductsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub kaidoki-navi-products-${Environment}
+      AttributeDefinitions:
+        - AttributeName: productId
+          AttributeType: S
+        - AttributeName: category
+          AttributeType: S
+        - AttributeName: updatedAt
+          AttributeType: S
+      KeySchema:
+        - AttributeName: productId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: category-updatedAt-index
+          KeySchema:
+            - AttributeName: category
+              KeyType: HASH
+            - AttributeName: updatedAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+          ProvisionedThroughput:
+            ReadCapacityUnits: 5
+            WriteCapacityUnits: 5
+      BillingMode: PROVISIONED
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+
+  PriceHistoryTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub kaidoki-navi-price-history-${Environment}
+      AttributeDefinitions:
+        - AttributeName: productId
+          AttributeType: S
+        - AttributeName: date
+          AttributeType: S
+      KeySchema:
+        - AttributeName: productId
+          KeyType: HASH
+        - AttributeName: date
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub kaidoki-navi-users-${Environment}
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: email
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: email-index
+          KeySchema:
+            - AttributeName: email
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+          ProvisionedThroughput:
+            ReadCapacityUnits: 5
+            WriteCapacityUnits: 5
+      BillingMode: PROVISIONED
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+
+  FavoritesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub kaidoki-navi-favorites-${Environment}
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: productId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+        - AttributeName: productId
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+
+  NotificationSettingsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub kaidoki-navi-notification-settings-${Environment}
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  CategoriesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub kaidoki-navi-categories-${Environment}
+      AttributeDefinitions:
+        - AttributeName: categoryId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: categoryId
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+Outputs:
+  ApiEndpoint:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${KaidokiNaviApi}.execute-api.${AWS::Region}.amazonaws.com/v1"
+  
+  ProductsTableName:
+    Description: "Products DynamoDB table name"
+    Value: !Ref ProductsTable
+  
+  PriceHistoryTableName:
+    Description: "Price History DynamoDB table name"
+    Value: !Ref PriceHistoryTable

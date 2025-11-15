@@ -1,0 +1,15 @@
+{
+  "httpMethod": "GET",
+  "path": "/products",
+  "pathParameters": null,
+  "queryStringParameters": {
+    "limit": "10",
+    "offset": "0"
+  },
+  "headers": {
+    "Content-Type": "application/json",
+    "Accept": "application/json"
+  },
+  "body": null,
+  "isBase64Encoded": false
+}

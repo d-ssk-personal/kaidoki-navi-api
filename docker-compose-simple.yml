@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  # FastAPI/Flask APIサーバー（Lambda関数をHTTPエンドポイントとして公開）
+  api:
+    build: .
+    ports:
+      - "3000:8080"
+    volumes:
+      - ./src:/var/task/src
+    environment:
+      - AWS_DEFAULT_REGION=ap-northeast-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - PRODUCTS_TABLE_NAME=kaidoki-navi-products-local
+      - PRICE_HISTORY_TABLE_NAME=kaidoki-navi-price-history-local
+      - USERS_TABLE_NAME=kaidoki-navi-users-local
+      - FAVORITES_TABLE_NAME=kaidoki-navi-favorites-local
+      - NOTIFICATION_SETTINGS_TABLE_NAME=kaidoki-navi-notification-settings-local
+      - CATEGORIES_TABLE_NAME=kaidoki-navi-categories-local
+      - JWT_SECRET_KEY=local-development-secret-key
+      - LOG_LEVEL=DEBUG
+      - ENVIRONMENT=development
+      - DYNAMODB_ENDPOINT=http://dynamodb-local:8000
+    depends_on:
+      - dynamodb-local
+    networks:
+      - kaidoki-network
+
+  # DynamoDB Local
+  dynamodb-local:
+    image: amazon/dynamodb-local:latest
+    container_name: dynamodb-local
+    ports:
+      - "8000:8000"
+    volumes:
+      - dynamodb-data:/home/dynamodblocal/data
+    working_dir: /home/dynamodblocal
+    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath /home/dynamodblocal/data"
+    networks:
+      - kaidoki-network
+
+  # DynamoDB Admin (管理UI)
+  dynamodb-admin:
+    image: aaronshaf/dynamodb-admin:latest
+    container_name: dynamodb-admin
+    ports:
+      - "8001:8001"
+    environment:
+      - DYNAMO_ENDPOINT=http://dynamodb-local:8000
+      - AWS_REGION=ap-northeast-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+    depends_on:
+      - dynamodb-local
+    networks:
+      - kaidoki-network
+
+networks:
+  kaidoki-network:
+    driver: bridge
+
+volumes:
+  dynamodb-data:

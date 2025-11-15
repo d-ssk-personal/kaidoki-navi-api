@@ -1,0 +1,13 @@
+{
+  "httpMethod": "POST",
+  "path": "/favorites",
+  "pathParameters": null,
+  "queryStringParameters": null,
+  "headers": {
+    "Content-Type": "application/json",
+    "Accept": "application/json",
+    "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoidGVzdC11c2VyLTEiLCJleHAiOjE3MzY5OTk5OTl9.dummy-token"
+  },
+  "body": "{\"productId\": \"item-1\"}",
+  "isBase64Encoded": false
+}
