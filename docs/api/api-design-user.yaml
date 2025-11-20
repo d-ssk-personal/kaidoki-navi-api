@@ -1,0 +1,1398 @@
+openapi: 3.0.3
+info:
+  title: Chirashi Kitchen - ユーザー側API
+  description: |
+    Chirashi Kitchenのユーザー向けAPIドキュメント
+
+    このAPIはチラシ情報、コラム情報、マイページ機能を提供します。
+
+    ## 主な機能
+    - チラシ情報の検索・閲覧
+    - AIレシピ提案（CloudVision + OpenAI）
+    - コラム記事の閲覧
+    - マイページ（お気に入り店舗管理、通知設定）
+    - 商品検索・価格推移分析
+
+  version: 1.0.0
+  contact:
+    name: Chirashi Kitchen API Support
+
+servers:
+  - url: https://api.chirashi-kitchen.com/v1
+    description: 本番環境
+  - url: https://api-staging.chirashi-kitchen.com/v1
+    description: ステージング環境
+  - url: http://localhost:3000/api/v1
+    description: ローカル開発環境
+
+tags:
+  - name: チラシ
+    description: チラシ関連のエンドポイント
+  - name: コラム
+    description: コラム記事関連のエンドポイント
+  - name: マイページ
+    description: ユーザーマイページ関連のエンドポイント
+  - name: 商品
+    description: 商品検索・価格情報関連のエンドポイント
+  - name: 店舗
+    description: 店舗情報関連のエンドポイント
+  - name: 認証
+    description: ユーザー認証関連のエンドポイント
+
+paths:
+  # ==================== 認証 ====================
+  /auth/login:
+    post:
+      tags:
+        - 認証
+      summary: ユーザーログイン
+      description: メールアドレスとパスワードでログインします
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: user@example.com
+                password:
+                  type: string
+                  format: password
+                  example: password123
+      responses:
+        '200':
+          description: ログイン成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: JWTトークン
+                    example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/logout:
+    post:
+      tags:
+        - 認証
+      summary: ユーザーログアウト
+      description: ログアウトしてトークンを無効化します
+      operationId: logout
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: ログアウト成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: ログアウトしました
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/register:
+    post:
+      tags:
+        - 認証
+      summary: ユーザー登録
+      description: 新規ユーザーを登録します
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+                - name
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: user@example.com
+                password:
+                  type: string
+                  format: password
+                  minLength: 8
+                  example: password123
+                name:
+                  type: string
+                  example: 山田太郎
+      responses:
+        '201':
+          description: 登録成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: JWTトークン
+                  user:
+                    $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ==================== チラシ ====================
+  /flyers/list:
+    get:
+      tags:
+        - チラシ
+      summary: チラシ一覧取得
+      description: |
+        チラシ一覧を取得します。地域、店舗名、住所で検索可能です。
+      operationId: getFlyers
+      parameters:
+        - name: region
+          in: query
+          description: 地方（北海道、東北、関東、など）
+          schema:
+            type: string
+        - name: prefecture
+          in: query
+          description: 都道府県
+          schema:
+            type: string
+        - name: storeName
+          in: query
+          description: 店舗名（部分一致）
+          schema:
+            type: string
+        - name: address
+          in: query
+          description: 住所（部分一致）
+          schema:
+            type: string
+        - name: page
+          in: query
+          description: ページ番号
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: 1ページあたりの件数
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Flyer'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /flyers/list/{flyerId}:
+    get:
+      tags:
+        - チラシ
+      summary: チラシ詳細取得
+      description: 指定されたIDのチラシ詳細情報を取得します
+      operationId: getFlyerById
+      parameters:
+        - name: flyerId
+          in: path
+          required: true
+          description: チラシID
+          schema:
+            type: string
+            example: flyer_001
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlyerDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /flyers/recipe/{flyerId}:
+    post:
+      tags:
+        - チラシ
+      summary: AIレシピ提案
+      description: |
+        チラシ画像からAIがレシピを提案します。
+
+        **処理の流れ:**
+        1. Cloud Vision APIでチラシ画像からテキスト抽出（OCR）
+        2. 抽出されたテキストから商品情報を解析
+        3. OpenAI APIで商品に基づいたレシピを生成
+
+        **注意:** この処理には10〜30秒程度かかる場合があります。
+      operationId: generateRecipe
+      parameters:
+        - name: flyerId
+          in: path
+          required: true
+          description: チラシID
+          schema:
+            type: string
+            example: flyer_001
+      responses:
+        '200':
+          description: レシピ生成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Recipe'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          description: レシピ生成エラー
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: レシピの生成に失敗しました
+
+  /flyers/recommended:
+    get:
+      tags:
+        - チラシ
+      summary: おすすめチラシ取得
+      description: |
+        おすすめのチラシを取得します。
+        ログイン済みの場合は、お気に入り店舗やユーザーの行動履歴に基づいてパーソナライズされます。
+      operationId: getRecommendedFlyers
+      security:
+        - BearerAuth: []
+        - {}
+      parameters:
+        - name: limit
+          in: query
+          description: 取得件数
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Flyer'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ==================== コラム ====================
+  /articles/list:
+    get:
+      tags:
+        - コラム
+      summary: コラム一覧取得
+      description: |
+        公開中のコラム記事一覧を取得します。
+        カテゴリやタグで絞り込み可能です。
+      operationId: getArticles
+      parameters:
+        - name: category
+          in: query
+          description: カテゴリで絞り込み
+          schema:
+            type: string
+            enum:
+              - 値上げ情報
+              - 特売情報
+              - 節約術
+              - レシピ
+              - その他
+        - name: tags
+          in: query
+          description: タグで絞り込み（カンマ区切りで複数指定可能）
+          schema:
+            type: string
+            example: 野菜,肉
+        - name: search
+          in: query
+          description: キーワード検索（タイトル・本文）
+          schema:
+            type: string
+        - name: page
+          in: query
+          description: ページ番号
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: 1ページあたりの件数
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Article'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /articles/list/{articleId}:
+    get:
+      tags:
+        - コラム
+      summary: コラム詳細取得
+      description: 指定されたIDのコラム記事詳細を取得します
+      operationId: getArticleById
+      parameters:
+        - name: articleId
+          in: path
+          required: true
+          description: コラムID
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArticleDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /articles/latest:
+    get:
+      tags:
+        - コラム
+      summary: 新着コラム取得
+      description: 最新のコラム記事を取得します
+      operationId: getLatestArticles
+      parameters:
+        - name: limit
+          in: query
+          description: 取得件数
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Article'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ==================== マイページ ====================
+  /users/me:
+    get:
+      tags:
+        - マイページ
+      summary: ユーザー情報取得
+      description: ログイン中のユーザー情報を取得します
+      operationId: getCurrentUser
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /users/update/me:
+    put:
+      tags:
+        - マイページ
+      summary: ユーザー情報更新
+      description: ログイン中のユーザー情報を更新します
+      operationId: updateCurrentUser
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: 山田太郎
+                email:
+                  type: string
+                  format: email
+                  example: user@example.com
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /users/favorite-stores/list:
+    get:
+      tags:
+        - マイページ
+      summary: お気に入り店舗一覧取得
+      description: ユーザーのお気に入り店舗一覧を取得します
+      operationId: getFavoriteStores
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FavoriteStore'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /users/favorite-stores/add:
+    post:
+      tags:
+        - マイページ
+      summary: お気に入り店舗追加
+      description: 店舗をお気に入りに追加します
+      operationId: addFavoriteStore
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - storeId
+              properties:
+                storeId:
+                  type: string
+                  example: store_001
+                notificationEnabled:
+                  type: boolean
+                  description: 新着チラシ通知を有効にするか
+                  default: false
+      responses:
+        '201':
+          description: 追加成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FavoriteStore'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: すでにお気に入りに追加済み
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: すでにお気に入りに追加されています
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /users/favorite-stores/delete/{storeId}:
+    delete:
+      tags:
+        - マイページ
+      summary: お気に入り店舗削除
+      description: 指定した店舗をお気に入りから削除します
+      operationId: removeFavoriteStore
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: storeId
+          in: path
+          required: true
+          description: 店舗ID
+          schema:
+            type: string
+            example: store_001
+      responses:
+        '200':
+          description: 削除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: お気に入りから削除しました
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /users/favorite-stores/update/{storeId}:
+    put:
+      tags:
+        - マイページ
+      summary: お気に入り店舗の通知設定更新
+      description: お気に入り店舗の新着チラシ通知設定を更新します
+      operationId: updateFavoriteStoreNotification
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: storeId
+          in: path
+          required: true
+          description: 店舗ID
+          schema:
+            type: string
+            example: store_001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - notificationEnabled
+              properties:
+                notificationEnabled:
+                  type: boolean
+                  example: true
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FavoriteStore'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /users/notification-settings:
+    get:
+      tags:
+        - マイページ
+      summary: 通知設定取得
+      description: ユーザーの通知設定を取得します
+      operationId: getNotificationSettings
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationSettings'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /users/notification-settings/update:
+    put:
+      tags:
+        - マイページ
+      summary: 通知設定更新
+      description: ユーザーの通知設定を更新します
+      operationId: updateNotificationSettings
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationSettings'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationSettings'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ==================== 商品 ====================
+  /products/list:
+    get:
+      tags:
+        - 商品
+      summary: 商品一覧取得
+      description: |
+        商品一覧を取得します。キーワードやカテゴリで検索可能です。
+      operationId: getProducts
+      parameters:
+        - name: keyword
+          in: query
+          description: キーワード検索（商品名）
+          schema:
+            type: string
+        - name: category
+          in: query
+          description: カテゴリで絞り込み
+          schema:
+            type: string
+        - name: page
+          in: query
+          description: ページ番号
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: 1ページあたりの件数
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Product'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /products/list/{productId}:
+    get:
+      tags:
+        - 商品
+      summary: 商品詳細取得
+      description: |
+        指定されたIDの商品詳細情報を取得します。
+        AI分析レポート、価格推移データも含まれます。
+      operationId: getProductById
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          description: 商品ID
+          schema:
+            type: string
+            example: prod_001
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /products/price-history/{productId}:
+    get:
+      tags:
+        - 商品
+      summary: 商品価格履歴取得
+      description: 指定された商品の価格推移履歴を取得します
+      operationId: getProductPriceHistory
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          description: 商品ID
+          schema:
+            type: string
+            example: prod_001
+        - name: period
+          in: query
+          description: 期間
+          schema:
+            type: string
+            enum: [7d, 30d, 90d]
+            default: 30d
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  productId:
+                    type: string
+                    example: prod_001
+                  period:
+                    type: string
+                    example: 30d
+                  history:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        date:
+                          type: string
+                          format: date-time
+                          example: '2024-01-15T00:00:00Z'
+                        price:
+                          type: number
+                          example: 298
+                        storeName:
+                          type: string
+                          example: スーパーA
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ==================== 店舗 ====================
+  /stores/list:
+    get:
+      tags:
+        - 店舗
+      summary: 店舗一覧取得
+      description: |
+        店舗一覧を取得します。地域や店舗名で検索可能です。
+      operationId: getStores
+      parameters:
+        - name: region
+          in: query
+          description: 地方
+          schema:
+            type: string
+        - name: prefecture
+          in: query
+          description: 都道府県
+          schema:
+            type: string
+        - name: storeName
+          in: query
+          description: 店舗名（部分一致）
+          schema:
+            type: string
+        - name: address
+          in: query
+          description: 住所（部分一致）
+          schema:
+            type: string
+        - name: page
+          in: query
+          description: ページ番号
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: 1ページあたりの件数
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Store'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /stores/list/{storeId}:
+    get:
+      tags:
+        - 店舗
+      summary: 店舗詳細取得
+      description: 指定されたIDの店舗詳細情報を取得します
+      operationId: getStoreById
+      parameters:
+        - name: storeId
+          in: path
+          required: true
+          description: 店舗ID
+          schema:
+            type: string
+            example: store_001
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoreDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /stores/flyers/{storeId}:
+    get:
+      tags:
+        - 店舗
+      summary: 店舗のチラシ一覧取得
+      description: 指定された店舗のチラシ一覧を取得します
+      operationId: getStoreFlyers
+      parameters:
+        - name: storeId
+          in: path
+          required: true
+          description: 店舗ID
+          schema:
+            type: string
+            example: store_001
+        - name: page
+          in: query
+          description: ページ番号
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: 1ページあたりの件数
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Flyer'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+# ==================== コンポーネント ====================
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        name:
+          type: string
+          example: 山田太郎
+        favoriteStores:
+          type: array
+          items:
+            type: string
+          description: お気に入り店舗IDの配列
+          example: ['store_001', 'store_002']
+        createdAt:
+          type: string
+          format: date-time
+          example: '2024-01-01T00:00:00Z'
+
+    Flyer:
+      type: object
+      properties:
+        id:
+          type: string
+          example: flyer_001
+        storeId:
+          type: string
+          example: store_001
+        storeName:
+          type: string
+          example: スーパーA 新宿店
+        storeLogo:
+          type: string
+          format: uri
+          example: https://example.com/logos/store_001.png
+        imageUrl:
+          type: string
+          format: uri
+          example: https://example.com/flyers/flyer_001.jpg
+        validFrom:
+          type: string
+          format: date
+          example: '2024-01-15'
+        validUntil:
+          type: string
+          format: date
+          example: '2024-01-21'
+        address:
+          type: string
+          example: 東京都新宿区新宿1-1-1
+        prefecture:
+          type: string
+          example: 東京都
+        region:
+          type: string
+          example: 関東
+        createdAt:
+          type: string
+          format: date-time
+          example: '2024-01-15T00:00:00Z'
+
+    FlyerDetail:
+      allOf:
+        - $ref: '#/components/schemas/Flyer'
+        - type: object
+          properties:
+            phone:
+              type: string
+              example: 03-1234-5678
+            openingHours:
+              type: string
+              example: 9:00-21:00
+            description:
+              type: string
+              example: 新春大セール開催中！
+
+    Recipe:
+      type: object
+      properties:
+        flyerId:
+          type: string
+          example: flyer_001
+        recipeText:
+          type: string
+          example: |
+            # おすすめレシピ
+
+            ## 豚バラ肉と白菜の煮物
+
+            ### 材料
+            - 豚バラ肉 300g（チラシの特売品）
+            - 白菜 1/4株（チラシの特売品）
+            - しょうゆ 大さじ2
+            - みりん 大さじ2
+            ...
+        ingredients:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                example: 豚バラ肉
+              price:
+                type: number
+                example: 298
+          description: チラシから抽出された食材リスト
+        generatedAt:
+          type: string
+          format: date-time
+          example: '2024-01-15T12:34:56Z'
+
+    Article:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        title:
+          type: string
+          example: 2024年の食品値上げ情報まとめ
+        content:
+          type: string
+          description: 本文（抜粋）
+          example: 2024年も多くの食品が値上げされます...
+        images:
+          type: array
+          items:
+            type: string
+            format: uri
+          example: ['https://example.com/articles/article_001_1.jpg']
+        publishedAt:
+          type: string
+          format: date-time
+          example: '2024-01-15T10:00:00Z'
+        category:
+          type: string
+          enum:
+            - 値上げ情報
+            - 特売情報
+            - 節約術
+            - レシピ
+            - その他
+          example: 値上げ情報
+        tags:
+          type: array
+          items:
+            type: string
+          example: ['食品', '値上げ', '2024年']
+        status:
+          type: string
+          enum: [published, draft]
+          example: published
+
+    ArticleDetail:
+      allOf:
+        - $ref: '#/components/schemas/Article'
+        - type: object
+          properties:
+            relatedArticles:
+              type: array
+              items:
+                $ref: '#/components/schemas/Article'
+              description: 関連記事
+
+    Product:
+      type: object
+      properties:
+        id:
+          type: string
+          example: prod_001
+        name:
+          type: string
+          example: 豚バラ肉
+        category:
+          type: string
+          example: 精肉
+        currentPrice:
+          type: number
+          example: 298
+        lowestPrice:
+          type: number
+          example: 198
+        lowestStoreName:
+          type: string
+          example: スーパーA
+        lastUpdated:
+          type: string
+          format: date-time
+          example: '2024-01-15T12:00:00Z'
+
+    ProductDetail:
+      allOf:
+        - $ref: '#/components/schemas/Product'
+        - type: object
+          properties:
+            previousPrice:
+              type: number
+              example: 320
+            shopPrices:
+              type: array
+              items:
+                type: object
+                properties:
+                  storeName:
+                    type: string
+                    example: スーパーA
+                  price:
+                    type: number
+                    example: 298
+                  updatedAt:
+                    type: string
+                    format: date-time
+            priceHistory:
+              type: array
+              items:
+                type: object
+                properties:
+                  date:
+                    type: string
+                    format: date-time
+                  price:
+                    type: number
+            aiSummary:
+              type: object
+              properties:
+                lowestPrice:
+                  type: string
+                  example: 現在の最安値は198円です
+                trend:
+                  type: string
+                  example: 価格は下降傾向にあります
+                recommendation:
+                  type: string
+                  example: 今が買い時です！
+
+    Store:
+      type: object
+      properties:
+        id:
+          type: string
+          example: store_001
+        name:
+          type: string
+          example: スーパーA 新宿店
+        logo:
+          type: string
+          format: uri
+          example: https://example.com/logos/store_001.png
+        address:
+          type: string
+          example: 東京都新宿区新宿1-1-1
+        prefecture:
+          type: string
+          example: 東京都
+        region:
+          type: string
+          example: 関東
+        phone:
+          type: string
+          example: 03-1234-5678
+        companyId:
+          type: string
+          example: company_001
+        companyName:
+          type: string
+          example: スーパーAグループ
+
+    StoreDetail:
+      allOf:
+        - $ref: '#/components/schemas/Store'
+        - type: object
+          properties:
+            openingHours:
+              type: string
+              example: 9:00-21:00
+            salePeriod:
+              type: string
+              example: 毎週金曜日はポイント5倍
+            latestFlyers:
+              type: array
+              items:
+                $ref: '#/components/schemas/Flyer'
+              description: 最新のチラシ
+
+    FavoriteStore:
+      type: object
+      properties:
+        storeId:
+          type: string
+          example: store_001
+        storeName:
+          type: string
+          example: スーパーA 新宿店
+        storeLogo:
+          type: string
+          format: uri
+          example: https://example.com/logos/store_001.png
+        address:
+          type: string
+          example: 東京都新宿区新宿1-1-1
+        phone:
+          type: string
+          example: 03-1234-5678
+        notificationEnabled:
+          type: boolean
+          description: 新着チラシ通知が有効か
+          example: true
+        addedAt:
+          type: string
+          format: date-time
+          example: '2024-01-01T00:00:00Z'
+
+    NotificationSettings:
+      type: object
+      properties:
+        categories:
+          type: array
+          items:
+            type: string
+            enum:
+              - 値上げ情報
+              - 特売情報
+              - 新着チラシ
+              - 価格変動
+          example: ['特売情報', '新着チラシ']
+        frequency:
+          type: string
+          enum: [realtime, daily, weekly]
+          example: daily
+        priceChangeThreshold:
+          type: number
+          description: 価格変動の通知閾値（%）
+          example: 10
+
+    Pagination:
+      type: object
+      properties:
+        currentPage:
+          type: integer
+          example: 1
+        totalPages:
+          type: integer
+          example: 10
+        totalItems:
+          type: integer
+          example: 200
+        limit:
+          type: integer
+          example: 20
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: エラーメッセージ
+        code:
+          type: string
+          example: ERROR_CODE
+        details:
+          type: object
+          additionalProperties: true
+
+  responses:
+    BadRequest:
+      description: リクエストが不正です
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: リクエストが不正です
+            code: BAD_REQUEST
+
+    Unauthorized:
+      description: 認証が必要です
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: 認証が必要です
+            code: UNAUTHORIZED
+
+    NotFound:
+      description: リソースが見つかりません
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: リソースが見つかりません
+            code: NOT_FOUND
+
+    InternalServerError:
+      description: サーバー内部エラー
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: サーバー内部エラーが発生しました
+            code: INTERNAL_SERVER_ERROR

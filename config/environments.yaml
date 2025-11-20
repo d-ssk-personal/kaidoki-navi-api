@@ -1,0 +1,63 @@
+# 環境別設定ファイル
+
+# 開発環境
+development:
+  stack_name: kaidoki-navi-api-development
+  region: ap-northeast-1
+  dynamodb:
+    billing_mode: PROVISIONED
+    read_capacity: 5
+    write_capacity: 5
+  lambda:
+    memory_size: 256
+    timeout: 30
+  api_gateway:
+    throttle:
+      burst_limit: 500
+      rate_limit: 100
+  tags:
+    Environment: development
+    Project: kaidoki-navi
+    ManagedBy: sam
+    CostCenter: development
+
+# 検証環境 (staging)
+staging:
+  stack_name: kaidoki-navi-api-staging
+  region: ap-northeast-1
+  dynamodb:
+    billing_mode: PROVISIONED
+    read_capacity: 10
+    write_capacity: 10
+  lambda:
+    memory_size: 512
+    timeout: 30
+  api_gateway:
+    throttle:
+      burst_limit: 1000
+      rate_limit: 500
+  tags:
+    Environment: staging
+    Project: kaidoki-navi
+    ManagedBy: sam
+    CostCenter: staging
+
+# 本番環境 (production)
+production:
+  stack_name: kaidoki-navi-api-production
+  region: ap-northeast-1
+  dynamodb:
+    billing_mode: PAY_PER_REQUEST  # 本番環境はオンデマンド課金
+  lambda:
+    memory_size: 1024
+    timeout: 30
+  api_gateway:
+    throttle:
+      burst_limit: 5000
+      rate_limit: 2000
+  tags:
+    Environment: production
+    Project: kaidoki-navi
+    ManagedBy: sam
+    CostCenter: production
+    Backup: enabled

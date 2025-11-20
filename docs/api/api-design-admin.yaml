@@ -1,0 +1,1850 @@
+openapi: 3.0.3
+info:
+  title: Chirashi Kitchen - 管理者側API
+  description: |
+    Chirashi Kitchenの管理者向けAPIドキュメント
+
+    このAPIは企業、店舗、チラシ、コラム、アカウントの管理機能を提供します。
+
+    ## 権限体系
+    - **システム管理者 (system_admin)**: 全機能へのアクセス権限
+    - **企業管理者 (company_admin)**: 自社の店舗・チラシ・アカウント管理
+    - **店舗ユーザー (store_user)**: 自店舗のチラシ・自分のアカウント管理
+
+    ## 権限による機能制限
+    | 機能 | システム管理者 | 企業管理者 | 店舗ユーザー |
+    |------|---------------|-----------|-------------|
+    | コラム管理 | ○ | × | × |
+    | 企業管理 | ○ | × | × |
+    | 店舗管理 | ○ | ○（自社のみ） | × |
+    | チラシ管理 | ○ | ○（自社のみ） | ○（自店舗のみ） |
+    | アカウント管理 | ○ | ○（自社のみ） | ○（自分のみ） |
+
+  version: 1.0.0
+  contact:
+    name: Chirashi Kitchen Admin API Support
+
+servers:
+  - url: https://api.chirashi-kitchen.com/v1/admin
+    description: 本番環境
+  - url: https://api-staging.chirashi-kitchen.com/v1/admin
+    description: ステージング環境
+  - url: http://localhost:3000/api/v1/admin
+    description: ローカル開発環境
+
+tags:
+  - name: 認証
+    description: 管理者認証関連のエンドポイント
+  - name: コラム管理
+    description: コラム記事の管理（システム管理者のみ）
+  - name: 企業管理
+    description: 企業の管理（システム管理者のみ）
+  - name: 店舗管理
+    description: 店舗の管理（システム管理者・企業管理者）
+  - name: チラシ管理
+    description: チラシの管理（全ての役割）
+  - name: アカウント管理
+    description: アカウントの管理（全ての役割）
+
+paths:
+  # ==================== 認証 ====================
+  /auth/login:
+    post:
+      tags:
+        - 認証
+      summary: 管理者ログイン
+      description: 管理者IDとパスワードでログインします
+      operationId: adminLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  example: admin001
+                password:
+                  type: string
+                  format: password
+                  example: admin_password123
+      responses:
+        '200':
+          description: ログイン成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: JWTトークン
+                    example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                  admin:
+                    $ref: '#/components/schemas/AdminUser'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ==================== コラム管理 ====================
+  /articles/list:
+    get:
+      tags:
+        - コラム管理
+      summary: コラム一覧取得
+      description: |
+        コラム記事の一覧を取得します（システム管理者のみ）。
+        検索・フィルター機能あり。
+      operationId: getAdminArticles
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          description: キーワード検索（タイトル・本文）
+          schema:
+            type: string
+        - name: status
+          in: query
+          description: ステータスで絞り込み
+          schema:
+            type: string
+            enum: [published, draft]
+        - name: category
+          in: query
+          description: カテゴリで絞り込み
+          schema:
+            type: string
+        - name: tags
+          in: query
+          description: タグで絞り込み（カンマ区切り）
+          schema:
+            type: string
+        - name: dateFrom
+          in: query
+          description: 公開日の開始日
+          schema:
+            type: string
+            format: date
+        - name: dateTo
+          in: query
+          description: 公開日の終了日
+          schema:
+            type: string
+            format: date
+        - name: page
+          in: query
+          description: ページ番号
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: 1ページあたりの件数
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AdminArticle'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /articles/add:
+    post:
+      tags:
+        - コラム管理
+      summary: コラム追加
+      description: 新しいコラム記事を追加します（システム管理者のみ）
+      operationId: createArticle
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArticleInput'
+      responses:
+        '201':
+          description: 追加成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminArticle'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /articles/list/{articleId}:
+    get:
+      tags:
+        - コラム管理
+      summary: コラム詳細取得
+      description: 指定されたIDのコラム詳細を取得します（システム管理者のみ）
+      operationId: getAdminArticleById
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: articleId
+          in: path
+          required: true
+          description: コラムID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminArticle'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /articles/update/{articleId}:
+    put:
+      tags:
+        - コラム管理
+      summary: コラム更新
+      description: 既存のコラム記事を更新します（システム管理者のみ）
+      operationId: updateArticle
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: articleId
+          in: path
+          required: true
+          description: コラムID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArticleInput'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminArticle'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /articles/delete/{articleId}:
+    delete:
+      tags:
+        - コラム管理
+      summary: コラム削除
+      description: 指定されたIDのコラムを削除します（システム管理者のみ）
+      operationId: deleteArticle
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: articleId
+          in: path
+          required: true
+          description: コラムID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 削除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: コラムを削除しました
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /articles/bulk-status:
+    put:
+      tags:
+        - コラム管理
+      summary: コラム一括ステータス変更
+      description: 複数のコラムのステータスを一括で変更します（システム管理者のみ）
+      operationId: bulkUpdateArticleStatus
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - articleIds
+                - status
+              properties:
+                articleIds:
+                  type: array
+                  items:
+                    type: integer
+                  example: [1, 2, 3]
+                status:
+                  type: string
+                  enum: [published, draft]
+                  example: published
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 3件のコラムを更新しました
+                  updatedCount:
+                    type: integer
+                    example: 3
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /articles/bulk-delete:
+    delete:
+      tags:
+        - コラム管理
+      summary: コラム一括削除
+      description: 複数のコラムを一括で削除します（システム管理者のみ）
+      operationId: bulkDeleteArticles
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: articleIds
+          in: query
+          required: true
+          description: 削除するコラムIDのカンマ区切りリスト
+          schema:
+            type: string
+            example: "1,2,3"
+      responses:
+        '200':
+          description: 削除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 3件のコラムを削除しました
+                  deletedCount:
+                    type: integer
+                    example: 3
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ==================== 企業管理 ====================
+  /companies/list:
+    get:
+      tags:
+        - 企業管理
+      summary: 企業一覧取得
+      description: |
+        企業の一覧を取得します（システム管理者のみ）。
+        検索・フィルター機能あり。
+      operationId: getCompanies
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          description: キーワード検索（企業名・担当者氏名）
+          schema:
+            type: string
+        - name: contractStatus
+          in: query
+          description: 契約状態で絞り込み
+          schema:
+            type: string
+            enum: [active, expired, suspended]
+        - name: contractPlan
+          in: query
+          description: 契約プランで絞り込み
+          schema:
+            type: string
+            enum: [basic, standard, premium]
+        - name: page
+          in: query
+          description: ページ番号
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: 1ページあたりの件数
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Company'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /companies/add:
+    post:
+      tags:
+        - 企業管理
+      summary: 企業追加
+      description: 新しい企業を追加します（システム管理者のみ）
+      operationId: createCompany
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyInput'
+      responses:
+        '201':
+          description: 追加成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /companies/list/{companyId}:
+    get:
+      tags:
+        - 企業管理
+      summary: 企業詳細取得
+      description: 指定されたIDの企業詳細を取得します（システム管理者のみ）
+      operationId: getCompanyById
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          description: 企業ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /companies/update/{companyId}:
+    put:
+      tags:
+        - 企業管理
+      summary: 企業更新
+      description: 既存の企業情報を更新します（システム管理者のみ）
+      operationId: updateCompany
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          description: 企業ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyInput'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /companies/delete/{companyId}:
+    delete:
+      tags:
+        - 企業管理
+      summary: 企業削除
+      description: 指定されたIDの企業を削除します（システム管理者のみ）
+      operationId: deleteCompany
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          description: 企業ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 削除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 企業を削除しました
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /companies/bulk-status:
+    put:
+      tags:
+        - 企業管理
+      summary: 企業一括ステータス変更
+      description: 複数の企業の契約状態を一括で変更します（システム管理者のみ）
+      operationId: bulkUpdateCompanyStatus
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - companyIds
+                - contractStatus
+              properties:
+                companyIds:
+                  type: array
+                  items:
+                    type: string
+                  example: ['company_001', 'company_002']
+                contractStatus:
+                  type: string
+                  enum: [active, expired, suspended]
+                  example: active
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 2件の企業を更新しました
+                  updatedCount:
+                    type: integer
+                    example: 2
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ==================== 店舗管理 ====================
+  /stores/list:
+    get:
+      tags:
+        - 店舗管理
+      summary: 店舗一覧取得
+      description: |
+        店舗の一覧を取得します。
+
+        **権限による表示制限:**
+        - システム管理者: 全店舗
+        - 企業管理者: 自社の店舗のみ
+        - 店舗ユーザー: アクセス不可
+      operationId: getAdminStores
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: companyId
+          in: query
+          description: 企業IDで絞り込み（システム管理者のみ）
+          schema:
+            type: string
+        - name: companyName
+          in: query
+          description: 企業名で絞り込み（部分一致、システム管理者のみ）
+          schema:
+            type: string
+        - name: storeId
+          in: query
+          description: 店舗IDで絞り込み
+          schema:
+            type: string
+        - name: storeName
+          in: query
+          description: 店舗名で絞り込み（部分一致）
+          schema:
+            type: string
+        - name: address
+          in: query
+          description: 住所で絞り込み（部分一致）
+          schema:
+            type: string
+        - name: page
+          in: query
+          description: ページ番号
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: 1ページあたりの件数
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AdminStore'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /stores/add:
+    post:
+      tags:
+        - 店舗管理
+      summary: 店舗追加
+      description: |
+        新しい店舗を追加します。
+
+        **権限:**
+        - システム管理者: 全企業の店舗を追加可能
+        - 企業管理者: 自社の店舗のみ追加可能
+      operationId: createStore
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StoreInput'
+      responses:
+        '201':
+          description: 追加成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminStore'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /stores/list/{storeId}:
+    get:
+      tags:
+        - 店舗管理
+      summary: 店舗詳細取得
+      description: 指定されたIDの店舗詳細を取得します
+      operationId: getAdminStoreById
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: storeId
+          in: path
+          required: true
+          description: 店舗ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminStore'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /stores/update/{storeId}:
+    put:
+      tags:
+        - 店舗管理
+      summary: 店舗更新
+      description: 既存の店舗情報を更新します
+      operationId: updateStore
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: storeId
+          in: path
+          required: true
+          description: 店舗ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StoreInput'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminStore'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /stores/delete/{storeId}:
+    delete:
+      tags:
+        - 店舗管理
+      summary: 店舗削除
+      description: 指定されたIDの店舗を削除します
+      operationId: deleteStore
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: storeId
+          in: path
+          required: true
+          description: 店舗ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 削除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 店舗を削除しました
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ==================== チラシ管理 ====================
+  /flyers/list:
+    get:
+      tags:
+        - チラシ管理
+      summary: チラシ一覧取得
+      description: |
+        チラシの一覧を取得します。
+
+        **権限による表示制限:**
+        - システム管理者: 全チラシ
+        - 企業管理者: 自社のチラシのみ
+        - 店舗ユーザー: 自店舗のチラシのみ
+      operationId: getAdminFlyers
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: companyId
+          in: query
+          description: 企業IDで絞り込み（システム管理者のみ）
+          schema:
+            type: string
+        - name: companyName
+          in: query
+          description: 企業名で絞り込み（部分一致、システム管理者のみ）
+          schema:
+            type: string
+        - name: storeId
+          in: query
+          description: 店舗IDで絞り込み（システム管理者・企業管理者）
+          schema:
+            type: string
+        - name: storeName
+          in: query
+          description: 店舗名で絞り込み（部分一致、システム管理者・企業管理者）
+          schema:
+            type: string
+        - name: flyerId
+          in: query
+          description: チラシIDで絞り込み
+          schema:
+            type: string
+        - name: address
+          in: query
+          description: 住所で絞り込み（部分一致）
+          schema:
+            type: string
+        - name: validFrom
+          in: query
+          description: 掲載開始日の開始日
+          schema:
+            type: string
+            format: date
+        - name: validUntil
+          in: query
+          description: 掲載終了日の終了日
+          schema:
+            type: string
+            format: date
+        - name: page
+          in: query
+          description: ページ番号
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: 1ページあたりの件数
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AdminFlyer'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /flyers/add:
+    post:
+      tags:
+        - チラシ管理
+      summary: チラシ追加
+      description: |
+        新しいチラシを追加します。
+
+        **権限:**
+        - システム管理者: 全企業のチラシを追加可能
+        - 企業管理者: 自社のチラシのみ追加可能
+        - 店舗ユーザー: 自店舗のチラシのみ追加可能
+      operationId: createFlyer
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FlyerInput'
+      responses:
+        '201':
+          description: 追加成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminFlyer'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /flyers/list/{flyerId}:
+    get:
+      tags:
+        - チラシ管理
+      summary: チラシ詳細取得
+      description: 指定されたIDのチラシ詳細を取得します
+      operationId: getAdminFlyerById
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: flyerId
+          in: path
+          required: true
+          description: チラシID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminFlyer'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /flyers/update/{flyerId}:
+    put:
+      tags:
+        - チラシ管理
+      summary: チラシ更新
+      description: 既存のチラシ情報を更新します
+      operationId: updateFlyer
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: flyerId
+          in: path
+          required: true
+          description: チラシID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FlyerInput'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminFlyer'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /flyers/delete/{flyerId}:
+    delete:
+      tags:
+        - チラシ管理
+      summary: チラシ削除
+      description: 指定されたIDのチラシを削除します
+      operationId: deleteFlyer
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: flyerId
+          in: path
+          required: true
+          description: チラシID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 削除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: チラシを削除しました
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ==================== アカウント管理 ====================
+  /accounts/list:
+    get:
+      tags:
+        - アカウント管理
+      summary: アカウント一覧取得
+      description: |
+        管理者アカウントの一覧を取得します。
+
+        **権限による表示制限:**
+        - システム管理者: 全アカウント
+        - 企業管理者: 自社のアカウントのみ
+        - 店舗ユーザー: 自分のアカウントのみ
+      operationId: getAccounts
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          description: キーワード検索（名前・ユーザー名）
+          schema:
+            type: string
+        - name: role
+          in: query
+          description: 役割で絞り込み
+          schema:
+            type: string
+            enum: [system_admin, company_admin, store_user]
+        - name: companyId
+          in: query
+          description: 企業IDで絞り込み（システム管理者のみ）
+          schema:
+            type: string
+        - name: page
+          in: query
+          description: ページ番号
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: 1ページあたりの件数
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AdminUser'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /accounts/add:
+    post:
+      tags:
+        - アカウント管理
+      summary: アカウント追加
+      description: |
+        新しい管理者アカウントを追加します。
+
+        **権限:**
+        - システム管理者: 全役割のアカウントを追加可能
+        - 企業管理者: 自社の企業管理者・店舗ユーザーを追加可能
+        - 店舗ユーザー: 追加不可
+      operationId: createAccount
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountInput'
+      responses:
+        '201':
+          description: 追加成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUser'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /accounts/list/{accountId}:
+    get:
+      tags:
+        - アカウント管理
+      summary: アカウント詳細取得
+      description: 指定されたIDのアカウント詳細を取得します
+      operationId: getAccountById
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          description: アカウントID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUser'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /accounts/update/{accountId}:
+    put:
+      tags:
+        - アカウント管理
+      summary: アカウント更新
+      description: 既存のアカウント情報を更新します
+      operationId: updateAccount
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          description: アカウントID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountInput'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUser'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /accounts/delete/{accountId}:
+    delete:
+      tags:
+        - アカウント管理
+      summary: アカウント削除
+      description: 指定されたIDのアカウントを削除します
+      operationId: deleteAccount
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          description: アカウントID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 削除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: アカウントを削除しました
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+# ==================== コンポーネント ====================
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    AdminUser:
+      type: object
+      properties:
+        id:
+          type: string
+          example: admin_001
+        username:
+          type: string
+          example: admin001
+        name:
+          type: string
+          example: 管理者太郎
+        role:
+          type: string
+          enum: [system_admin, company_admin, store_user]
+          example: system_admin
+        companyId:
+          type: string
+          nullable: true
+          example: company_001
+        companyName:
+          type: string
+          nullable: true
+          example: スーパーAグループ
+        storeId:
+          type: string
+          nullable: true
+          example: store_001
+        storeName:
+          type: string
+          nullable: true
+          example: スーパーA 新宿店
+        email:
+          type: string
+          format: email
+          example: admin@example.com
+        createdAt:
+          type: string
+          format: date-time
+          example: '2024-01-01T00:00:00Z'
+        lastLoginAt:
+          type: string
+          format: date-time
+          nullable: true
+          example: '2024-01-15T10:00:00Z'
+
+    AdminArticle:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        title:
+          type: string
+          example: 2024年の食品値上げ情報まとめ
+        content:
+          type: string
+          example: 2024年も多くの食品が値上げされます...
+        images:
+          type: array
+          items:
+            type: string
+            format: uri
+          example: ['https://example.com/articles/article_001_1.jpg']
+        publishedAt:
+          type: string
+          format: date-time
+          nullable: true
+          example: '2024-01-15T10:00:00Z'
+        category:
+          type: string
+          enum: [値上げ情報, 特売情報, 節約術, レシピ, その他]
+          example: 値上げ情報
+        tags:
+          type: array
+          items:
+            type: string
+          example: ['食品', '値上げ', '2024年']
+        status:
+          type: string
+          enum: [published, draft]
+          example: published
+        createdAt:
+          type: string
+          format: date-time
+          example: '2024-01-10T00:00:00Z'
+        updatedAt:
+          type: string
+          format: date-time
+          example: '2024-01-15T00:00:00Z'
+        createdBy:
+          type: string
+          example: admin_001
+        updatedBy:
+          type: string
+          example: admin_001
+
+    ArticleInput:
+      type: object
+      required:
+        - title
+        - content
+        - category
+      properties:
+        title:
+          type: string
+          example: 2024年の食品値上げ情報まとめ
+        content:
+          type: string
+          example: 2024年も多くの食品が値上げされます...
+        images:
+          type: array
+          items:
+            type: string
+            format: uri
+          example: ['https://example.com/articles/article_001_1.jpg']
+        category:
+          type: string
+          enum: [値上げ情報, 特売情報, 節約術, レシピ, その他]
+          example: 値上げ情報
+        tags:
+          type: array
+          items:
+            type: string
+          example: ['食品', '値上げ', '2024年']
+        status:
+          type: string
+          enum: [published, draft]
+          default: draft
+          example: published
+        publishedAt:
+          type: string
+          format: date-time
+          nullable: true
+          example: '2024-01-15T10:00:00Z'
+
+    Company:
+      type: object
+      properties:
+        id:
+          type: string
+          example: company_001
+        name:
+          type: string
+          example: スーパーAグループ
+        contactPerson:
+          type: string
+          example: 山田太郎
+        email:
+          type: string
+          format: email
+          example: contact@superA.com
+        phone:
+          type: string
+          example: 03-1234-5678
+        address:
+          type: string
+          example: 東京都千代田区1-1-1
+        contractStatus:
+          type: string
+          enum: [active, expired, suspended]
+          example: active
+        contractPlan:
+          type: string
+          enum: [basic, standard, premium]
+          example: premium
+        contractStartDate:
+          type: string
+          format: date
+          example: '2023-01-01'
+        contractEndDate:
+          type: string
+          format: date
+          example: '2024-12-31'
+        storeCount:
+          type: integer
+          description: 登録店舗数
+          example: 15
+        createdAt:
+          type: string
+          format: date-time
+          example: '2023-01-01T00:00:00Z'
+        updatedAt:
+          type: string
+          format: date-time
+          example: '2024-01-15T00:00:00Z'
+
+    CompanyInput:
+      type: object
+      required:
+        - name
+        - contactPerson
+        - email
+        - contractPlan
+      properties:
+        name:
+          type: string
+          example: スーパーAグループ
+        contactPerson:
+          type: string
+          example: 山田太郎
+        email:
+          type: string
+          format: email
+          example: contact@superA.com
+        phone:
+          type: string
+          example: 03-1234-5678
+        address:
+          type: string
+          example: 東京都千代田区1-1-1
+        contractStatus:
+          type: string
+          enum: [active, expired, suspended]
+          default: active
+          example: active
+        contractPlan:
+          type: string
+          enum: [basic, standard, premium]
+          example: premium
+        contractStartDate:
+          type: string
+          format: date
+          example: '2023-01-01'
+        contractEndDate:
+          type: string
+          format: date
+          example: '2024-12-31'
+
+    AdminStore:
+      type: object
+      properties:
+        id:
+          type: string
+          example: store_001
+        name:
+          type: string
+          example: スーパーA 新宿店
+        companyId:
+          type: string
+          example: company_001
+        companyName:
+          type: string
+          example: スーパーAグループ
+        logo:
+          type: string
+          format: uri
+          nullable: true
+          example: https://example.com/logos/store_001.png
+        address:
+          type: string
+          example: 東京都新宿区新宿1-1-1
+        prefecture:
+          type: string
+          example: 東京都
+        region:
+          type: string
+          example: 関東
+        phone:
+          type: string
+          example: 03-1234-5678
+        openingHours:
+          type: string
+          example: 9:00-21:00
+        salePeriod:
+          type: string
+          nullable: true
+          example: 毎週金曜日はポイント5倍
+        createdAt:
+          type: string
+          format: date-time
+          example: '2023-01-01T00:00:00Z'
+        updatedAt:
+          type: string
+          format: date-time
+          example: '2024-01-15T00:00:00Z'
+
+    StoreInput:
+      type: object
+      required:
+        - name
+        - companyId
+        - address
+        - prefecture
+      properties:
+        name:
+          type: string
+          example: スーパーA 新宿店
+        companyId:
+          type: string
+          example: company_001
+        logo:
+          type: string
+          format: uri
+          nullable: true
+          example: https://example.com/logos/store_001.png
+        address:
+          type: string
+          example: 東京都新宿区新宿1-1-1
+        prefecture:
+          type: string
+          example: 東京都
+        region:
+          type: string
+          example: 関東
+        phone:
+          type: string
+          example: 03-1234-5678
+        openingHours:
+          type: string
+          example: 9:00-21:00
+        salePeriod:
+          type: string
+          nullable: true
+          example: 毎週金曜日はポイント5倍
+
+    AdminFlyer:
+      type: object
+      properties:
+        id:
+          type: string
+          example: flyer_001
+        storeId:
+          type: string
+          example: store_001
+        storeName:
+          type: string
+          example: スーパーA 新宿店
+        companyId:
+          type: string
+          example: company_001
+        companyName:
+          type: string
+          example: スーパーAグループ
+        imageUrl:
+          type: string
+          format: uri
+          example: https://example.com/flyers/flyer_001.jpg
+        validFrom:
+          type: string
+          format: date
+          example: '2024-01-15'
+        validUntil:
+          type: string
+          format: date
+          example: '2024-01-21'
+        description:
+          type: string
+          nullable: true
+          example: 新春大セール開催中！
+        createdAt:
+          type: string
+          format: date-time
+          example: '2024-01-15T00:00:00Z'
+        updatedAt:
+          type: string
+          format: date-time
+          example: '2024-01-15T00:00:00Z'
+        createdBy:
+          type: string
+          example: admin_001
+
+    FlyerInput:
+      type: object
+      required:
+        - storeId
+        - image
+        - validFrom
+        - validUntil
+      properties:
+        storeId:
+          type: string
+          example: store_001
+        image:
+          type: string
+          format: binary
+          description: チラシ画像ファイル
+        validFrom:
+          type: string
+          format: date
+          example: '2024-01-15'
+        validUntil:
+          type: string
+          format: date
+          example: '2024-01-21'
+        description:
+          type: string
+          nullable: true
+          example: 新春大セール開催中！
+
+    AccountInput:
+      type: object
+      required:
+        - username
+        - name
+        - email
+        - password
+        - role
+      properties:
+        username:
+          type: string
+          example: admin001
+        name:
+          type: string
+          example: 管理者太郎
+        email:
+          type: string
+          format: email
+          example: admin@example.com
+        password:
+          type: string
+          format: password
+          minLength: 8
+          example: secure_password123
+        role:
+          type: string
+          enum: [system_admin, company_admin, store_user]
+          example: company_admin
+        companyId:
+          type: string
+          nullable: true
+          description: company_admin, store_userの場合は必須
+          example: company_001
+        storeId:
+          type: string
+          nullable: true
+          description: store_userの場合は必須
+          example: store_001
+
+    Pagination:
+      type: object
+      properties:
+        currentPage:
+          type: integer
+          example: 1
+        totalPages:
+          type: integer
+          example: 10
+        totalItems:
+          type: integer
+          example: 200
+        limit:
+          type: integer
+          example: 20
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: エラーメッセージ
+        code:
+          type: string
+          example: ERROR_CODE
+        details:
+          type: object
+          additionalProperties: true
+
+  responses:
+    BadRequest:
+      description: リクエストが不正です
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: リクエストが不正です
+            code: BAD_REQUEST
+
+    Unauthorized:
+      description: 認証が必要です
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: 認証が必要です
+            code: UNAUTHORIZED
+
+    Forbidden:
+      description: この操作を実行する権限がありません
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: この操作を実行する権限がありません
+            code: FORBIDDEN
+
+    NotFound:
+      description: リソースが見つかりません
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: リソースが見つかりません
+            code: NOT_FOUND
+
+    InternalServerError:
+      description: サーバー内部エラー
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: サーバー内部エラーが発生しました
+            code: INTERNAL_SERVER_ERROR
