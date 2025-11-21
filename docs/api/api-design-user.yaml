@@ -38,6 +38,8 @@ tags:
     description: 店舗情報関連のエンドポイント
   - name: 認証
     description: ユーザー認証関連のエンドポイント
+  - name: 共有レシピ
+    description: SNS共有レシピ関連のエンドポイント
 
 paths:
   # ==================== 認証 ====================
@@ -287,6 +289,63 @@ paths:
                   error:
                     type: string
                     example: レシピの生成に失敗しました
+
+  /flyers/recipe/share:
+    post:
+      tags:
+        - チラシ
+      summary: レシピをSNS共有用に保存
+      description: |
+        生成されたレシピをSNS共有用として永続化します。
+        共有レシピはSharedRecipesテーブルに保存され、TTLなしで永続的に保持されます。
+
+        **処理の流れ:**
+        1. Recipesテーブルから元のレシピを取得
+        2. 店舗情報のスナップショットを作成
+        3. SharedRecipesテーブルに新規作成
+        4. 共有URL（https://chirashi-kitchen.com/shared-recipe/{sharedRecipeId}）を返却
+      operationId: shareRecipe
+      security:
+        - BearerAuth: []
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - flyerId
+              properties:
+                flyerId:
+                  type: string
+                  description: チラシID
+                  example: flyer_001
+                userId:
+                  type: string
+                  description: 共有するユーザーID（任意、ログイン済みの場合のみ）
+                  example: user_a1b2c3d4
+      responses:
+        '201':
+          description: 共有レシピ作成成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sharedRecipeId:
+                    type: string
+                    example: shared_recipe_abc123
+                  shareUrl:
+                    type: string
+                    example: https://chirashi-kitchen.com/shared-recipe/shared_recipe_abc123
+                  ogpImageUrl:
+                    type: string
+                    example: https://s3.amazonaws.com/chirashi-kitchen/shared-recipes/abc123.jpg
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /flyers/recommended:
     get:
@@ -978,6 +1037,98 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+  # ==================== 共有レシピ ====================
+  /shared-recipes/{sharedRecipeId}:
+    get:
+      tags:
+        - 共有レシピ
+      summary: 共有レシピ取得
+      description: |
+        SNS経由で共有されたレシピを取得します。
+        このエンドポイントはログイン不要でアクセス可能です（OGP対応）。
+
+        **アクセスURL例:**
+        - https://chirashi-kitchen.com/shared-recipe/{sharedRecipeId}
+
+        **用途:**
+        - Twitter/Facebook/InstagramなどのSNS投稿からのアクセス
+        - OGPメタタグによるリッチプレビュー表示
+        - 共有レシピの閲覧数カウント
+      operationId: getSharedRecipe
+      parameters:
+        - name: sharedRecipeId
+          in: path
+          required: true
+          description: 共有レシピID
+          schema:
+            type: string
+            example: shared_recipe_abc123
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SharedRecipe'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /flyers/{flyerId}/shared-recipes:
+    get:
+      tags:
+        - 共有レシピ
+      summary: チラシから共有されたレシピ一覧取得
+      description: |
+        特定のチラシから生成・共有されたレシピの一覧を取得します。
+        チラシ詳細ページで「このチラシから生成された人気レシピ」として表示できます。
+      operationId: getFlyerSharedRecipes
+      parameters:
+        - name: flyerId
+          in: path
+          required: true
+          description: チラシID
+          schema:
+            type: string
+            example: flyer_001
+        - name: limit
+          in: query
+          description: 取得件数
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+        - name: sortBy
+          in: query
+          description: ソート順
+          schema:
+            type: string
+            enum:
+              - latest
+              - popular
+            default: latest
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SharedRecipe'
+                  total:
+                    type: integer
+                    example: 25
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
 # ==================== コンポーネント ====================
 components:
   securitySchemes:
@@ -1103,6 +1254,93 @@ components:
           type: string
           format: date-time
           example: '2024-01-15T12:34:56Z'
+
+    SharedRecipe:
+      type: object
+      properties:
+        sharedRecipeId:
+          type: string
+          description: 共有レシピID（UUID）
+          example: shared_recipe_abc123
+        flyerId:
+          type: string
+          description: 元となったチラシID
+          example: flyer_001
+        recipeText:
+          type: string
+          description: レシピ本文（Markdown形式）
+          example: |
+            # おすすめレシピ
+
+            ## 豚バラ肉と白菜の煮物
+
+            ### 材料
+            - 豚バラ肉 300g（特売品）
+            - 白菜 1/4株（特売品）
+            ...
+        ingredients:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                example: 豚バラ肉
+              price:
+                type: number
+                example: 298
+          description: 食材リスト
+        storeInfo:
+          type: object
+          description: 店舗情報のスナップショット
+          properties:
+            storeId:
+              type: string
+              example: store_001
+            storeName:
+              type: string
+              example: スーパーA 新宿店
+            storeLogo:
+              type: string
+              format: uri
+              example: https://example.com/logos/store_001.png
+            storeAddress:
+              type: string
+              example: 東京都新宿区新宿1-1-1
+            flyerValidFrom:
+              type: string
+              format: date
+              example: '2024-01-15'
+            flyerValidUntil:
+              type: string
+              format: date
+              example: '2024-01-21'
+        imageUrl:
+          type: string
+          format: uri
+          description: レシピ画像URL（OGP用）
+          example: https://s3.amazonaws.com/chirashi-kitchen/shared-recipes/abc123.jpg
+        sharedAt:
+          type: string
+          format: date-time
+          description: 共有日時
+          example: '2024-01-15T12:34:56Z'
+        sharedByUserId:
+          type: string
+          description: 共有したユーザーID（任意）
+          example: user_a1b2c3d4
+        viewCount:
+          type: integer
+          description: 閲覧数
+          example: 152
+        createdAt:
+          type: string
+          format: date-time
+          example: '2024-01-15T12:34:56Z'
+        updatedAt:
+          type: string
+          format: date-time
+          example: '2024-01-20T10:00:00Z'
 
     Article:
       type: object
