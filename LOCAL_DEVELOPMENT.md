@@ -24,6 +24,22 @@ docker network create lambda-local
 ./scripts/start-local.sh
 ```
 
+**データの永続化について:**
+- データはDocker volumeに保存され、**コンテナを停止・再起動してもデータは保持されます**
+- 2回目以降の起動時は、既存のテーブルとデータがそのまま使用されます
+- テーブルの存在確認が行われ、既に存在する場合は初期化をスキップします
+
+**データをリセットしたい場合:**
+
+```bash
+# オプション1: --reset オプションを使用（推奨）
+./scripts/start-local.sh --reset
+
+# オプション2: 手動でvolumeを削除
+docker-compose down -v
+./scripts/start-local.sh
+```
+
 または、手動で起動する場合：
 
 ```bash
@@ -33,7 +49,7 @@ docker-compose up -d
 # DynamoDB Localの起動を待つ（5秒程度）
 sleep 5
 
-# DynamoDBテーブルを初期化
+# DynamoDBテーブルを初期化（既に存在する場合はスキップされます）
 ./scripts/init-dynamodb.sh
 
 # テストデータを投入（オプション）
@@ -194,19 +210,43 @@ docker-compose up -d
 
 ## 停止方法
 
+### SAM Local APIを停止
+
 ```bash
-# SAM Local APIを停止
 Ctrl + C
+```
 
-# Docker Composeのサービスを停止
-docker-compose down
+### DynamoDB LocalとDynamoDB Adminを停止
 
-# データを保持したまま停止
+**データを保持する場合（通常の停止）:**
+
+```bash
+# 方法1: コンテナを一時停止（再起動が速い）
 docker-compose stop
 
-# データも含めて完全に削除
-docker-compose down -v
+# 方法2: コンテナを削除（volumeは保持される）
+docker-compose down
 ```
+
+**データを完全に削除する場合:**
+
+```bash
+# volumeも含めて完全削除
+docker-compose down -v
+
+# または、--resetオプションを使用して再起動
+./scripts/start-local.sh --reset
+```
+
+### データ保持に関する重要な情報
+
+| コマンド | コンテナ | データ | 用途 |
+|---------|---------|-------|------|
+| `docker-compose stop` | 停止 | **保持** | 一時的に停止（再起動が速い） |
+| `docker-compose down` | 削除 | **保持** | 通常の停止（推奨） |
+| `docker-compose down -v` | 削除 | **削除** | データをクリーンアップしたい時 |
+
+💡 **ヒント:** 通常は `docker-compose down` を使用してください。データは保持され、次回起動時もそのまま利用できます。
 
 ## ディレクトリ構造
 
