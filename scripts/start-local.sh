@@ -26,14 +26,14 @@ sleep 5
 # 2. DynamoDBテーブルを初期化
 echo ""
 echo "📦 DynamoDB テーブルを初期化中..."
-./scripts/init-dynamodb.sh
+sh init-dynamodb.sh
 
 # 3. テストデータを投入
 echo ""
 read -p "テストデータを投入しますか？ (y/N): " -n 1 -r
 echo ""
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-  ./scripts/seed-data.sh
+  sh seed-data.sh
 fi
 
 echo ""
