@@ -88,6 +88,16 @@ you will need to re-run sam build for the changes to be picked up.
 http://localhost:8002
 ```
 
+**重要: ポートについて**
+- **ポート8000**: DynamoDB Local のAPIエンドポイント
+  - ⚠️ ブラウザで開くと `400 Bad Request` が表示されますが、これは正常です
+  - このポートはAWS APIコールを受け付けるためのもので、Webインターフェースではありません
+  - AWS CLIやSDK（boto3）からアクセスするために使用します
+
+- **ポート8002**: DynamoDB Admin の管理GUI
+  - ✅ ブラウザでアクセスできます
+  - テーブルの内容を視覚的に確認・編集できます
+
 以下のテーブルが表示されていればOKです：
 
 - chirashi-kitchen-articles-local
@@ -166,6 +176,69 @@ http://localhost:8002 を開き、`chirashi-kitchen-articles-local` テーブル
 | store | password | 店舗ユーザー |
 
 ## トラブルシューティング
+
+### 自動診断スクリプトを実行
+
+問題が発生した場合、まず診断スクリプトを実行してください：
+
+```bash
+./scripts/troubleshoot-docker.sh
+```
+
+このスクリプトは以下を確認します：
+- コンテナの起動状態
+- ポートバインディング
+- ログの内容
+- ネットワーク設定
+- DynamoDB APIへの接続
+
+### ポート8002（DynamoDB Admin GUI）が開けない
+
+**症状**: ブラウザでhttp://localhost:8002を開いても長時間読み込み中になる、またはエラーが出る
+
+**解決方法**:
+
+1. **コンテナのログを確認**:
+   ```bash
+   docker logs dynamodb-admin
+   ```
+
+2. **DynamoDB Adminコンテナを再起動**:
+   ```bash
+   docker-compose restart dynamodb-admin
+   # 5秒待ってからブラウザでアクセス
+   sleep 5
+   ```
+
+3. **ブラウザのキャッシュをクリア**:
+   - ブラウザのキャッシュとCookieを削除
+   - プライベートモード/シークレットモードで試す
+   - 別のブラウザで試す
+
+4. **完全に再起動**:
+   ```bash
+   docker-compose down
+   docker-compose up -d
+   sleep 5
+   ```
+
+5. **ポート競合の確認**:
+   ```bash
+   lsof -i :8002
+   # 他のプロセスがポート8002を使用していないか確認
+   ```
+
+### ポート8000で400エラーが出る
+
+**これは正常な動作です！** ポート8000はDynamoDB APIエンドポイントであり、ブラウザでアクセスするものではありません。
+
+- ✅ 正常: AWS CLIやSDKから接続できる
+- ❌ 期待しない: ブラウザで開くと400エラー
+
+確認方法:
+```bash
+aws dynamodb list-tables --endpoint-url http://localhost:8000 --region ap-northeast-1
+```
 
 ### ポートが既に使用されている
 
