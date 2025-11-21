@@ -1,21 +1,30 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: 買いどきナビ API
+Description: Chirashi Kitchen API
 
 Globals:
   Function:
     Timeout: 30
     Runtime: python3.12
-    MemorySize: 256
+    MemorySize: 512
     Environment:
       Variables:
-        PRODUCTS_TABLE_NAME: !Ref ProductsTable
-        PRICE_HISTORY_TABLE_NAME: !Ref PriceHistoryTable
+        # DynamoDB Tables
+        ARTICLES_TABLE_NAME: !Ref ArticlesTable
+        COMPANIES_TABLE_NAME: !Ref CompaniesTable
+        STORES_TABLE_NAME: !Ref StoresTable
+        FLYERS_TABLE_NAME: !Ref FlyersTable
+        ADMINS_TABLE_NAME: !Ref AdminsTable
         USERS_TABLE_NAME: !Ref UsersTable
-        FAVORITES_TABLE_NAME: !Ref FavoritesTable
-        NOTIFICATION_SETTINGS_TABLE_NAME: !Ref NotificationSettingsTable
-        CATEGORIES_TABLE_NAME: !Ref CategoriesTable
+        FAVORITE_STORES_TABLE_NAME: !Ref FavoriteStoresTable
+        RECIPES_TABLE_NAME: !Ref RecipesTable
+        SHARED_RECIPES_TABLE_NAME: !Ref SharedRecipesTable
+        # S3
+        S3_BUCKET_NAME: !Ref ImagesBucket
+        # JWT
         JWT_SECRET_KEY: !Ref JWTSecretKey
+        # AWS
+        AWS_REGION: !Ref AWS::Region
         LOG_LEVEL: INFO
         ENVIRONMENT: !Ref Environment
   Api:
@@ -33,7 +42,7 @@ Parameters:
       - staging
       - production
     Description: Environment name
-  
+
   JWTSecretKey:
     Type: String
     NoEcho: true
@@ -41,7 +50,7 @@ Parameters:
 
 Resources:
   # API Gateway
-  KaidokiNaviApi:
+  ChirashiKitchenApi:
     Type: AWS::Serverless::Api
     Properties:
       StageName: v1
@@ -50,257 +59,332 @@ Resources:
         AllowHeaders: "'Content-Type,Authorization'"
         AllowOrigin: "'*'"
 
-  # Lambda Functions - Products
-  ProductsListFunction:
+  # ==================== 管理者API ====================
+
+  # 認証
+  AdminLoginFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: src/
-      Handler: handlers.products.list_products
+      Handler: admin.handlers.auth.admin_login
       Policies:
         - DynamoDBReadPolicy:
-            TableName: !Ref ProductsTable
+            TableName: !Ref AdminsTable
+        - DynamoDBWritePolicy:
+            TableName: !Ref AdminsTable
       Events:
-        ListProducts:
+        AdminLogin:
           Type: Api
           Properties:
-            RestApiId: !Ref KaidokiNaviApi
-            Path: /products
-            Method: get
-
-  ProductGetFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: src/
-      Handler: handlers.products.get_product
-      Policies:
-        - DynamoDBReadPolicy:
-            TableName: !Ref ProductsTable
-        - DynamoDBReadPolicy:
-            TableName: !Ref PriceHistoryTable
-      Events:
-        GetProduct:
-          Type: Api
-          Properties:
-            RestApiId: !Ref KaidokiNaviApi
-            Path: /products/{productId}
-            Method: get
-
-  PriceHistoryFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: src/
-      Handler: handlers.products.get_price_history
-      Policies:
-        - DynamoDBReadPolicy:
-            TableName: !Ref ProductsTable
-        - DynamoDBReadPolicy:
-            TableName: !Ref PriceHistoryTable
-      Events:
-        GetPriceHistory:
-          Type: Api
-          Properties:
-            RestApiId: !Ref KaidokiNaviApi
-            Path: /products/{productId}/price-history
-            Method: get
-
-  # Lambda Functions - Categories
-  CategoriesListFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: src/
-      Handler: handlers.categories.list_categories
-      Events:
-        ListCategories:
-          Type: Api
-          Properties:
-            RestApiId: !Ref KaidokiNaviApi
-            Path: /categories
-            Method: get
-
-  # Lambda Functions - Favorites
-  FavoritesListFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: src/
-      Handler: handlers.favorites.list_favorites
-      Policies:
-        - DynamoDBReadPolicy:
-            TableName: !Ref FavoritesTable
-        - DynamoDBReadPolicy:
-            TableName: !Ref ProductsTable
-      Events:
-        ListFavorites:
-          Type: Api
-          Properties:
-            RestApiId: !Ref KaidokiNaviApi
-            Path: /favorites
-            Method: get
-
-  FavoriteAddFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: src/
-      Handler: handlers.favorites.add_favorite
-      Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref FavoritesTable
-        - DynamoDBReadPolicy:
-            TableName: !Ref ProductsTable
-      Events:
-        AddFavorite:
-          Type: Api
-          Properties:
-            RestApiId: !Ref KaidokiNaviApi
-            Path: /favorites
+            RestApiId: !Ref ChirashiKitchenApi
+            Path: /admin/auth/login
             Method: post
 
-  FavoriteRemoveFunction:
+  # コラム管理
+  ArticlesListFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: src/
-      Handler: handlers.favorites.remove_favorite
-      Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref FavoritesTable
-      Events:
-        RemoveFavorite:
-          Type: Api
-          Properties:
-            RestApiId: !Ref KaidokiNaviApi
-            Path: /favorites/{productId}
-            Method: delete
-
-  # Lambda Functions - Notifications
-  NotificationSettingsGetFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: src/
-      Handler: handlers.notifications.get_notification_settings
+      Handler: admin.handlers.articles.list_articles
       Policies:
         - DynamoDBReadPolicy:
-            TableName: !Ref NotificationSettingsTable
+            TableName: !Ref ArticlesTable
       Events:
-        GetSettings:
+        ArticlesList:
           Type: Api
           Properties:
-            RestApiId: !Ref KaidokiNaviApi
-            Path: /notifications/settings
+            RestApiId: !Ref ChirashiKitchenApi
+            Path: /admin/articles/list
             Method: get
 
-  NotificationSettingsUpdateFunction:
+  ArticleGetFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: src/
-      Handler: handlers.notifications.update_notification_settings
+      Handler: admin.handlers.articles.get_article
       Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref NotificationSettingsTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref ArticlesTable
       Events:
-        UpdateSettings:
+        ArticleGet:
           Type: Api
           Properties:
-            RestApiId: !Ref KaidokiNaviApi
-            Path: /notifications/settings
+            RestApiId: !Ref ChirashiKitchenApi
+            Path: /admin/articles/list/{articleId}
+            Method: get
+
+  ArticleCreateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: admin.handlers.articles.create_article
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ArticlesTable
+        - S3CrudPolicy:
+            BucketName: !Ref ImagesBucket
+      Events:
+        ArticleCreate:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ChirashiKitchenApi
+            Path: /admin/articles/add
+            Method: post
+
+  ArticleUpdateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: admin.handlers.articles.update_article
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ArticlesTable
+        - S3CrudPolicy:
+            BucketName: !Ref ImagesBucket
+      Events:
+        ArticleUpdate:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ChirashiKitchenApi
+            Path: /admin/articles/update/{articleId}
             Method: put
 
-  LineConnectFunction:
+  ArticleDeleteFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: src/
-      Handler: handlers.notifications.connect_line
+      Handler: admin.handlers.articles.delete_article
       Policies:
         - DynamoDBCrudPolicy:
-            TableName: !Ref NotificationSettingsTable
+            TableName: !Ref ArticlesTable
+        - S3CrudPolicy:
+            BucketName: !Ref ImagesBucket
       Events:
-        ConnectLine:
+        ArticleDelete:
           Type: Api
           Properties:
-            RestApiId: !Ref KaidokiNaviApi
-            Path: /notifications/line/connect
-            Method: post
+            RestApiId: !Ref ChirashiKitchenApi
+            Path: /admin/articles/delete/{articleId}
+            Method: delete
 
-  LineDisconnectFunction:
+  ArticleBulkStatusFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: src/
-      Handler: handlers.notifications.disconnect_line
+      Handler: admin.handlers.articles.bulk_update_status
       Policies:
         - DynamoDBCrudPolicy:
-            TableName: !Ref NotificationSettingsTable
+            TableName: !Ref ArticlesTable
       Events:
-        DisconnectLine:
+        ArticleBulkStatus:
           Type: Api
           Properties:
-            RestApiId: !Ref KaidokiNaviApi
-            Path: /notifications/line/disconnect
-            Method: post
+            RestApiId: !Ref ChirashiKitchenApi
+            Path: /admin/articles/bulk-status
+            Method: put
 
-  # Lambda Functions - Contact
-  ContactSubmitFunction:
+  ArticleBulkDeleteFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: src/
-      Handler: handlers.contact.submit_contact
+      Handler: admin.handlers.articles.bulk_delete_articles
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ArticlesTable
       Events:
-        SubmitContact:
+        ArticleBulkDelete:
           Type: Api
           Properties:
-            RestApiId: !Ref KaidokiNaviApi
-            Path: /contact
-            Method: post
+            RestApiId: !Ref ChirashiKitchenApi
+            Path: /admin/articles/bulk-delete
+            Method: delete
 
-  # DynamoDB Tables
-  ProductsTable:
+  # ==================== DynamoDB Tables ====================
+
+  # 管理者
+  AdminsTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub kaidoki-navi-products-${Environment}
+      TableName: !Sub chirashi-kitchen-admins-${Environment}
+      BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
-        - AttributeName: productId
+        - AttributeName: adminId
           AttributeType: S
-        - AttributeName: category
+        - AttributeName: username
           AttributeType: S
-        - AttributeName: updatedAt
+        - AttributeName: companyId
+          AttributeType: S
+        - AttributeName: role
           AttributeType: S
       KeySchema:
-        - AttributeName: productId
+        - AttributeName: adminId
           KeyType: HASH
       GlobalSecondaryIndexes:
-        - IndexName: category-updatedAt-index
+        - IndexName: UsernameIndex
           KeySchema:
-            - AttributeName: category
+            - AttributeName: username
               KeyType: HASH
-            - AttributeName: updatedAt
+          Projection:
+            ProjectionType: ALL
+        - IndexName: CompanyIndex
+          KeySchema:
+            - AttributeName: companyId
+              KeyType: HASH
+            - AttributeName: role
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
-          ProvisionedThroughput:
-            ReadCapacityUnits: 5
-            WriteCapacityUnits: 5
-      BillingMode: PROVISIONED
-      ProvisionedThroughput:
-        ReadCapacityUnits: 5
-        WriteCapacityUnits: 5
 
-  PriceHistoryTable:
+  # コラム
+  ArticlesTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub kaidoki-navi-price-history-${Environment}
+      TableName: !Sub chirashi-kitchen-articles-${Environment}
+      BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
-        - AttributeName: productId
+        - AttributeName: articleId
+          AttributeType: N
+        - AttributeName: status
           AttributeType: S
-        - AttributeName: date
+        - AttributeName: publishedAt
+          AttributeType: S
+        - AttributeName: category
           AttributeType: S
       KeySchema:
-        - AttributeName: productId
+        - AttributeName: articleId
           KeyType: HASH
-        - AttributeName: date
-          KeyType: RANGE
-      BillingMode: PAY_PER_REQUEST
+      GlobalSecondaryIndexes:
+        - IndexName: StatusIndex
+          KeySchema:
+            - AttributeName: status
+              KeyType: HASH
+            - AttributeName: publishedAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: CategoryIndex
+          KeySchema:
+            - AttributeName: category
+              KeyType: HASH
+            - AttributeName: publishedAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
 
+  # 企業
+  CompaniesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub chirashi-kitchen-companies-${Environment}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: companyId
+          AttributeType: S
+        - AttributeName: contractStatus
+          AttributeType: S
+        - AttributeName: contractPlan
+          AttributeType: S
+      KeySchema:
+        - AttributeName: companyId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: ContractStatusIndex
+          KeySchema:
+            - AttributeName: contractStatus
+              KeyType: HASH
+            - AttributeName: contractPlan
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  # 店舗
+  StoresTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub chirashi-kitchen-stores-${Environment}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: storeId
+          AttributeType: S
+        - AttributeName: companyId
+          AttributeType: S
+        - AttributeName: prefecture
+          AttributeType: S
+        - AttributeName: region
+          AttributeType: S
+      KeySchema:
+        - AttributeName: storeId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: CompanyIndex
+          KeySchema:
+            - AttributeName: companyId
+              KeyType: HASH
+            - AttributeName: storeId
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: RegionIndex
+          KeySchema:
+            - AttributeName: prefecture
+              KeyType: HASH
+            - AttributeName: region
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  # チラシ
+  FlyersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub chirashi-kitchen-flyers-${Environment}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: flyerId
+          AttributeType: S
+        - AttributeName: storeId
+          AttributeType: S
+        - AttributeName: validFrom
+          AttributeType: S
+        - AttributeName: prefecture
+          AttributeType: S
+        - AttributeName: companyId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: flyerId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: StoreIndex
+          KeySchema:
+            - AttributeName: storeId
+              KeyType: HASH
+            - AttributeName: validFrom
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: RegionIndex
+          KeySchema:
+            - AttributeName: prefecture
+              KeyType: HASH
+            - AttributeName: validFrom
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: CompanyIndex
+          KeySchema:
+            - AttributeName: companyId
+              KeyType: HASH
+            - AttributeName: validFrom
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  # ユーザー
   UsersTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub kaidoki-navi-users-${Environment}
+      TableName: !Sub chirashi-kitchen-users-${Environment}
+      BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: userId
           AttributeType: S
@@ -310,69 +394,103 @@ Resources:
         - AttributeName: userId
           KeyType: HASH
       GlobalSecondaryIndexes:
-        - IndexName: email-index
+        - IndexName: EmailIndex
           KeySchema:
             - AttributeName: email
               KeyType: HASH
           Projection:
             ProjectionType: ALL
-          ProvisionedThroughput:
-            ReadCapacityUnits: 5
-            WriteCapacityUnits: 5
-      BillingMode: PROVISIONED
-      ProvisionedThroughput:
-        ReadCapacityUnits: 5
-        WriteCapacityUnits: 5
 
-  FavoritesTable:
+  # お気に入り店舗
+  FavoriteStoresTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub kaidoki-navi-favorites-${Environment}
+      TableName: !Sub chirashi-kitchen-favorite-stores-${Environment}
+      BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: userId
           AttributeType: S
-        - AttributeName: productId
+        - AttributeName: storeId
           AttributeType: S
       KeySchema:
         - AttributeName: userId
           KeyType: HASH
-        - AttributeName: productId
+        - AttributeName: storeId
           KeyType: RANGE
-      BillingMode: PAY_PER_REQUEST
 
-  NotificationSettingsTable:
+  # AIレシピ（キャッシュ）
+  RecipesTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub kaidoki-navi-notification-settings-${Environment}
+      TableName: !Sub chirashi-kitchen-recipes-${Environment}
+      BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
-        - AttributeName: userId
+        - AttributeName: flyerId
           AttributeType: S
       KeySchema:
-        - AttributeName: userId
+        - AttributeName: flyerId
           KeyType: HASH
-      BillingMode: PAY_PER_REQUEST
+      TimeToLiveSpecification:
+        Enabled: true
+        AttributeName: ttl
 
-  CategoriesTable:
+  # 共有レシピ
+  SharedRecipesTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub kaidoki-navi-categories-${Environment}
+      TableName: !Sub chirashi-kitchen-shared-recipes-${Environment}
+      BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
-        - AttributeName: categoryId
+        - AttributeName: sharedRecipeId
+          AttributeType: S
+        - AttributeName: flyerId
+          AttributeType: S
+        - AttributeName: sharedAt
           AttributeType: S
       KeySchema:
-        - AttributeName: categoryId
+        - AttributeName: sharedRecipeId
           KeyType: HASH
-      BillingMode: PAY_PER_REQUEST
+      GlobalSecondaryIndexes:
+        - IndexName: FlyerIndex
+          KeySchema:
+            - AttributeName: flyerId
+              KeyType: HASH
+            - AttributeName: sharedAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  # S3 Bucket
+  ImagesBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub chirashi-kitchen-images-${Environment}
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - "*"
+            AllowedMethods:
+              - GET
+              - PUT
+              - POST
+              - DELETE
+            AllowedOrigins:
+              - "*"
+            MaxAge: 3000
 
 Outputs:
   ApiEndpoint:
     Description: "API Gateway endpoint URL"
-    Value: !Sub "https://${KaidokiNaviApi}.execute-api.${AWS::Region}.amazonaws.com/v1"
-  
-  ProductsTableName:
-    Description: "Products DynamoDB table name"
-    Value: !Ref ProductsTable
-  
-  PriceHistoryTableName:
-    Description: "Price History DynamoDB table name"
-    Value: !Ref PriceHistoryTable
+    Value: !Sub "https://${ChirashiKitchenApi}.execute-api.${AWS::Region}.amazonaws.com/v1"
+
+  AdminsTableName:
+    Description: "Admins DynamoDB table name"
+    Value: !Ref AdminsTable
+
+  ArticlesTableName:
+    Description: "Articles DynamoDB table name"
+    Value: !Ref ArticlesTable
+
+  ImagesBucketName:
+    Description: "S3 Images bucket name"
+    Value: !Ref ImagesBucket

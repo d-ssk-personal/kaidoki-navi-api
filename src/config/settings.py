@@ -9,16 +9,27 @@ from typing import Optional
 class Settings:
     """アプリケーション設定クラス"""
     
-    # DynamoDB テーブル名
-    PRODUCTS_TABLE_NAME: str = os.environ.get('PRODUCTS_TABLE_NAME', 'kaidoki-navi-products')
-    PRICE_HISTORY_TABLE_NAME: str = os.environ.get('PRICE_HISTORY_TABLE_NAME', 'kaidoki-navi-price-history')
-    USERS_TABLE_NAME: str = os.environ.get('USERS_TABLE_NAME', 'kaidoki-navi-users')
-    FAVORITES_TABLE_NAME: str = os.environ.get('FAVORITES_TABLE_NAME', 'kaidoki-navi-favorites')
-    NOTIFICATION_SETTINGS_TABLE_NAME: str = os.environ.get('NOTIFICATION_SETTINGS_TABLE_NAME', 'kaidoki-navi-notification-settings')
-    CATEGORIES_TABLE_NAME: str = os.environ.get('CATEGORIES_TABLE_NAME', 'kaidoki-navi-categories')
-    
+    # DynamoDB テーブル名（管理者機能）
+    ARTICLES_TABLE_NAME: str = os.environ.get('ARTICLES_TABLE_NAME', 'chirashi-kitchen-articles')
+    COMPANIES_TABLE_NAME: str = os.environ.get('COMPANIES_TABLE_NAME', 'chirashi-kitchen-companies')
+    STORES_TABLE_NAME: str = os.environ.get('STORES_TABLE_NAME', 'chirashi-kitchen-stores')
+    FLYERS_TABLE_NAME: str = os.environ.get('FLYERS_TABLE_NAME', 'chirashi-kitchen-flyers')
+    ADMINS_TABLE_NAME: str = os.environ.get('ADMINS_TABLE_NAME', 'chirashi-kitchen-admins')
+
+    # DynamoDB テーブル名（ユーザー機能）
+    USERS_TABLE_NAME: str = os.environ.get('USERS_TABLE_NAME', 'chirashi-kitchen-users')
+    FAVORITE_STORES_TABLE_NAME: str = os.environ.get('FAVORITE_STORES_TABLE_NAME', 'chirashi-kitchen-favorite-stores')
+    RECIPES_TABLE_NAME: str = os.environ.get('RECIPES_TABLE_NAME', 'chirashi-kitchen-recipes')
+    SHARED_RECIPES_TABLE_NAME: str = os.environ.get('SHARED_RECIPES_TABLE_NAME', 'chirashi-kitchen-shared-recipes')
+
     # AWS設定
     AWS_REGION: str = os.environ.get('AWS_REGION', 'ap-northeast-1')
+
+    # S3設定
+    S3_BUCKET_NAME: str = os.environ.get('S3_BUCKET_NAME', 'chirashi-kitchen-images')
+    S3_FLYERS_FOLDER: str = 'flyers'
+    S3_ARTICLES_FOLDER: str = 'articles'
+    S3_LOGOS_FOLDER: str = 'logos'
     
     # 認証設定
     JWT_SECRET_KEY: str = os.environ.get('JWT_SECRET_KEY', 'your-secret-key-change-in-production')
