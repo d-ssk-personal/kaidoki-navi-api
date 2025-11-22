@@ -80,15 +80,17 @@ Resources:
             Path: /admin/auth/login
             Method: post
 
-  # コラム管理
-  ArticlesListFunction:
+  # コラム管理API（統合版 - コールドスタート対策）
+  ArticlesApiFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: src/
-      Handler: admin.handlers.articles.list_articles
+      Handler: admin.handlers.articles_router.route_articles
       Policies:
-        - DynamoDBReadPolicy:
+        - DynamoDBCrudPolicy:
             TableName: !Ref ArticlesTable
+        - S3CrudPolicy:
+            BucketName: !Ref ImagesBucket
       Events:
         ArticlesList:
           Type: Api
@@ -96,102 +98,36 @@ Resources:
             RestApiId: !Ref ChirashiKitchenApi
             Path: /admin/articles/list
             Method: get
-
-  ArticleGetFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: src/
-      Handler: admin.handlers.articles.get_article
-      Policies:
-        - DynamoDBReadPolicy:
-            TableName: !Ref ArticlesTable
-      Events:
         ArticleGet:
           Type: Api
           Properties:
             RestApiId: !Ref ChirashiKitchenApi
             Path: /admin/articles/list/{articleId}
             Method: get
-
-  ArticleCreateFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: src/
-      Handler: admin.handlers.articles.create_article
-      Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref ArticlesTable
-        - S3CrudPolicy:
-            BucketName: !Ref ImagesBucket
-      Events:
         ArticleCreate:
           Type: Api
           Properties:
             RestApiId: !Ref ChirashiKitchenApi
             Path: /admin/articles/add
             Method: post
-
-  ArticleUpdateFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: src/
-      Handler: admin.handlers.articles.update_article
-      Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref ArticlesTable
-        - S3CrudPolicy:
-            BucketName: !Ref ImagesBucket
-      Events:
         ArticleUpdate:
           Type: Api
           Properties:
             RestApiId: !Ref ChirashiKitchenApi
             Path: /admin/articles/update/{articleId}
             Method: put
-
-  ArticleDeleteFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: src/
-      Handler: admin.handlers.articles.delete_article
-      Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref ArticlesTable
-        - S3CrudPolicy:
-            BucketName: !Ref ImagesBucket
-      Events:
         ArticleDelete:
           Type: Api
           Properties:
             RestApiId: !Ref ChirashiKitchenApi
             Path: /admin/articles/delete/{articleId}
             Method: delete
-
-  ArticleBulkStatusFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: src/
-      Handler: admin.handlers.articles.bulk_update_status
-      Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref ArticlesTable
-      Events:
         ArticleBulkStatus:
           Type: Api
           Properties:
             RestApiId: !Ref ChirashiKitchenApi
             Path: /admin/articles/bulk-status
             Method: put
-
-  ArticleBulkDeleteFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: src/
-      Handler: admin.handlers.articles.bulk_delete_articles
-      Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref ArticlesTable
-      Events:
         ArticleBulkDelete:
           Type: Api
           Properties:
