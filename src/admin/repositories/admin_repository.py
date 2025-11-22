@@ -6,8 +6,8 @@ from boto3.dynamodb.conditions import Key
 from typing import Optional, Dict, Any
 from datetime import datetime
 
-from src.config.settings import settings
-from src.utils.logger import get_logger
+from config.settings import settings
+from utils.logger import get_logger
 
 logger = get_logger(__name__)
 

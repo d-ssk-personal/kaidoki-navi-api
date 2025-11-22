@@ -3,9 +3,9 @@
 ビジネスロジックを担当
 """
 from typing import Dict, Any, List, Tuple, Optional
-from src.admin.repositories.article_repository import ArticleRepository
-from src.utils.logger import get_logger
-from src.utils.s3 import upload_image, delete_image
+from admin.repositories.article_repository import ArticleRepository
+from utils.logger import get_logger
+from utils.s3 import upload_image, delete_image
 
 logger = get_logger(__name__)
 

@@ -4,8 +4,8 @@
 import re
 from typing import List, Dict, Any, Optional
 
-from src.common.constants import SortOrder, NotificationFrequency, ContactCategory, PRICE_HISTORY_DAYS
-from src.config.settings import settings
+from common.constants import SortOrder, NotificationFrequency, ContactCategory, PRICE_HISTORY_DAYS
+from config.settings import settings
 
 
 class ValidationError(Exception):

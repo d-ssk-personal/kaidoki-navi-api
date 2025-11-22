@@ -5,15 +5,15 @@ import json
 import bcrypt
 from typing import Dict, Any
 
-from src.admin.repositories.admin_repository import AdminRepository
-from src.utils.auth import generate_admin_token
-from src.utils.response import (
+from admin.repositories.admin_repository import AdminRepository
+from utils.auth import generate_admin_token
+from utils.response import (
     success_response,
     bad_request_response,
     unauthorized_response,
     internal_server_error_response
 )
-from src.utils.logger import get_logger
+from utils.logger import get_logger
 
 logger = get_logger(__name__)
 

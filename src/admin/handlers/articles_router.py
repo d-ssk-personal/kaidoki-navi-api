@@ -5,16 +5,16 @@
 import json
 from typing import Dict, Any
 
-from src.admin.services.article_service import ArticleService
-from src.utils.auth import require_role
-from src.utils.response import (
+from admin.services.article_service import ArticleService
+from utils.auth import require_role
+from utils.response import (
     success_response,
     bad_request_response,
     not_found_response,
     forbidden_response,
     internal_server_error_response
 )
-from src.utils.logger import get_logger
+from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
