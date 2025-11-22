@@ -4,7 +4,7 @@ APIレスポンス生成ユーティリティ
 import json
 from typing import Any, Dict, Optional, List
 
-from src.common.constants import HTTPStatus, ErrorCode
+from common.constants import HTTPStatus, ErrorCode
 
 
 def success_response(

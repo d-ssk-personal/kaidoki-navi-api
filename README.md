@@ -1,130 +1,193 @@
-# kaidoki-navi-api
+# 買いどきナビ API
 
-This project contains source code and supporting files for a serverless application that you can deploy with the SAM CLI. It includes the following files and folders.
+チラシ情報管理システムのバックエンドAPI
 
-- hello_world - Code for the application's Lambda function.
-- events - Invocation events that you can use to invoke the function.
-- tests - Unit tests for the application code. 
-- template.yaml - A template that defines the application's AWS resources.
+## プロジェクト構成
 
-The application uses several AWS resources, including Lambda functions and an API Gateway API. These resources are defined in the `template.yaml` file in this project. You can update the template to add AWS resources through the same deployment process that updates your application code.
+```
+kaidoki-navi-api/
+├── src/
+│   ├── admin/              # 管理者API
+│   │   ├── handlers/       # Lambda関数ハンドラ
+│   │   └── repositories/   # DynamoDBリポジトリ
+│   ├── user/               # ユーザーAPI（未実装）
+│   ├── utils/              # 共通ユーティリティ
+│   └── config/             # 設定ファイル
+├── scripts/
+│   ├── deploy.sh           # AWS環境デプロイ
+│   ├── destroy.sh          # AWS環境削除
+│   ├── start-local.sh      # ローカル環境起動
+│   ├── cleanup-docker.sh   # Docker環境クリーンアップ
+│   ├── generate_init_script.py  # テーブル定義自動生成
+│   └── seed-data.sh        # テストデータ投入
+├── docs/                   # 設計書
+│   ├── database-design.md  # データベース設計
+│   └── api-design-admin.yaml  # API設計
+├── template.yaml           # SAMテンプレート（テーブル定義の唯一の真実の源）
+├── docker-compose.yml      # ローカル開発環境
+├── env.json                # SAM Local環境変数
+└── QUICKSTART.md          # クイックスタートガイド
 
-If you prefer to use an integrated development environment (IDE) to build and test your application, you can use the AWS Toolkit.  
-The AWS Toolkit is an open source plug-in for popular IDEs that uses the SAM CLI to build and deploy serverless applications on AWS. The AWS Toolkit also adds a simplified step-through debugging experience for Lambda function code. See the following links to get started.
+## 🎯 特徴
 
-* [CLion](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [GoLand](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [IntelliJ](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [WebStorm](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [Rider](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [PhpStorm](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [PyCharm](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [RubyMine](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [DataGrip](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [VS Code](https://docs.aws.amazon.com/toolkit-for-vscode/latest/userguide/welcome.html)
-* [Visual Studio](https://docs.aws.amazon.com/toolkit-for-visual-studio/latest/user-guide/welcome.html)
+- **テーブル定義の一元管理**: `template.yaml`を唯一の真実の源（Single Source of Truth）として、ローカル環境とAWS環境の両方で同じテーブル定義を使用
+- **自動生成スクリプト**: `template.yaml`から`init-dynamodb.sh`を自動生成
+- **ローカル開発環境**: DynamoDB LocalとDynamoDB Admin GUIで快適な開発
+- **Python 3.12**: 最新のPythonランタイム
+- **AWS SAM**: サーバーレスアプリケーションのデプロイとローカルテスト
 
-## Deploy the sample application
+## 🚀 クイックスタート
 
-The Serverless Application Model Command Line Interface (SAM CLI) is an extension of the AWS CLI that adds functionality for building and testing Lambda applications. It uses Docker to run your functions in an Amazon Linux environment that matches Lambda. It can also emulate your application's build environment and API.
+詳細な手順は[QUICKSTART.md](QUICKSTART.md)を参照してください。
 
-To use the SAM CLI, you need the following tools.
+### 前提条件
 
-* SAM CLI - [Install the SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html)
-* [Python 3 installed](https://www.python.org/downloads/)
-* Docker - [Install Docker community edition](https://hub.docker.com/search/?type=edition&offering=community)
+- Macbook (macOS)
+- Docker Desktop
+- AWS CLI
+- AWS SAM CLI
+- Python 3.12
 
-To build and deploy your application for the first time, run the following in your shell:
+### ローカル環境の起動
 
 ```bash
-sam build --use-container
-sam deploy --guided
+# Docker環境を起動してDynamoDBテーブルを作成
+./scripts/start-local.sh
+
+# SAM Localを起動
+sam build
+sam local start-api --docker-network lambda-local --env-vars env.json
 ```
 
-The first command will build the source of your application. The second command will package and deploy your application to AWS, with a series of prompts:
+DynamoDB Admin GUI: http://localhost:8002
+SAM Local API: http://127.0.0.1:3000
 
-* **Stack Name**: The name of the stack to deploy to CloudFormation. This should be unique to your account and region, and a good starting point would be something matching your project name.
-* **AWS Region**: The AWS region you want to deploy your app to.
-* **Confirm changes before deploy**: If set to yes, any change sets will be shown to you before execution for manual review. If set to no, the AWS SAM CLI will automatically deploy application changes.
-* **Allow SAM CLI IAM role creation**: Many AWS SAM templates, including this example, create AWS IAM roles required for the AWS Lambda function(s) included to access AWS services. By default, these are scoped down to minimum required permissions. To deploy an AWS CloudFormation stack which creates or modifies IAM roles, the `CAPABILITY_IAM` value for `capabilities` must be provided. If permission isn't provided through this prompt, to deploy this example you must explicitly pass `--capabilities CAPABILITY_IAM` to the `sam deploy` command.
-* **Save arguments to samconfig.toml**: If set to yes, your choices will be saved to a configuration file inside the project, so that in the future you can just re-run `sam deploy` without parameters to deploy changes to your application.
-
-You can find your API Gateway Endpoint URL in the output values displayed after deployment.
-
-## Use the SAM CLI to build and test locally
-
-Build your application with the `sam build --use-container` command.
+### AWS環境へのデプロイ
 
 ```bash
-kaidoki-navi-api$ sam build --use-container
+# 開発環境にデプロイ
+./scripts/deploy.sh development
+
+# 本番環境にデプロイ
+./scripts/deploy.sh production
 ```
 
-The SAM CLI installs dependencies defined in `hello_world/requirements.txt`, creates a deployment package, and saves it in the `.aws-sam/build` folder.
+## 📋 テーブル定義の管理
 
-Test a single function by invoking it directly with a test event. An event is a JSON document that represents the input that the function receives from the event source. Test events are included in the `events` folder in this project.
+### 重要: テーブル定義は`template.yaml`で一元管理されています
 
-Run functions locally and invoke them with the `sam local invoke` command.
+テーブル定義を変更する場合の手順：
+
+1. **`template.yaml`を編集**してテーブル定義を変更
+2. **自動生成スクリプトを実行**してローカル環境用のスクリプトを更新:
+   ```bash
+   python scripts/generate_init_script.py
+   ```
+3. **ローカル環境を再起動**:
+   ```bash
+   ./scripts/cleanup-docker.sh
+   ./scripts/start-local.sh
+   ```
+
+### テーブル名の規則
+
+- **AWS環境**: `chirashi-kitchen-{table}-${Environment}` (例: `chirashi-kitchen-articles-development`)
+- **ローカル環境**: `chirashi-kitchen-{table}` (例: `chirashi-kitchen-articles`)
+
+### なぜ一元管理が重要か？
+
+- **整合性**: ローカル環境とAWS環境で同じテーブル構造を保証
+- **メンテナンス性**: 1箇所の変更で両環境に反映
+- **バグ防止**: 定義のずれによるエラーを防止
+
+## 🗄️ DynamoDBテーブル
+
+現在実装されているテーブル：
+
+- `chirashi-kitchen-admins` - 管理者ユーザー
+- `chirashi-kitchen-articles` - コラム記事
+- `chirashi-kitchen-companies` - 企業情報
+- `chirashi-kitchen-stores` - 店舗情報
+- `chirashi-kitchen-flyers` - チラシ情報
+- `chirashi-kitchen-users` - エンドユーザー
+- `chirashi-kitchen-favorite-stores` - お気に入り店舗
+- `chirashi-kitchen-recipes` - レシピ
+- `chirashi-kitchen-shared-recipes` - 共有レシピ
+
+## 🔧 開発
+
+### ディレクトリ構成
+
+```
+src/
+├── admin/
+│   ├── handlers/
+│   │   ├── auth.py          # 認証
+│   │   └── articles.py      # コラム管理
+│   └── repositories/
+│       ├── admin_repository.py
+│       └── article_repository.py
+├── utils/
+│   ├── auth.py              # JWT認証
+│   ├── response.py          # APIレスポンス
+│   ├── logger.py            # ロギング
+│   └── s3.py                # S3画像アップロード
+└── config/
+    └── settings.py          # 環境設定
+```
+
+### 環境変数
+
+`env.json`でローカル環境の環境変数を設定：
+
+- `DYNAMODB_ENDPOINT_URL`: DynamoDB Localのエンドポイント
+- `ARTICLES_TABLE_NAME`: テーブル名
+- `JWT_SECRET_KEY`: JWT署名キー
+
+### テストアカウント
+
+| ユーザー名 | パスワード | ロール |
+|-----------|----------|-------|
+| admin | password | システム管理者 |
+| company | password | 企業管理者 |
+| store | password | 店舗ユーザー |
+
+## 📚 ドキュメント
+
+- [QUICKSTART.md](QUICKSTART.md) - クイックスタートガイド
+- [DEPLOYMENT.md](DEPLOYMENT.md) - デプロイメントガイド
+- [docs/database-design.md](docs/database-design.md) - データベース設計書
+- [docs/api-design-admin.yaml](docs/api-design-admin.yaml) - 管理者API設計書
+
+## 🛠️ トラブルシューティング
+
+### Docker環境がうまく起動しない
 
 ```bash
-kaidoki-navi-api$ sam local invoke HelloWorldFunction --event events/event.json
+# 完全クリーンアップしてから再起動
+./scripts/cleanup-docker.sh
+./scripts/start-local.sh
 ```
 
-The SAM CLI can also emulate your application's API. Use the `sam local start-api` to run the API locally on port 3000.
+### テーブル定義を変更したのに反映されない
 
 ```bash
-kaidoki-navi-api$ sam local start-api
-kaidoki-navi-api$ curl http://localhost:3000/
+# テーブル定義の自動生成スクリプトを実行
+python scripts/generate_init_script.py
+
+# Docker環境を再起動
+./scripts/cleanup-docker.sh
+./scripts/start-local.sh
 ```
 
-The SAM CLI reads the application template to determine the API's routes and the functions that they invoke. The `Events` property on each function's definition includes the route and method for each path.
-
-```yaml
-      Events:
-        HelloWorld:
-          Type: Api
-          Properties:
-            Path: /hello
-            Method: get
-```
-
-## Add a resource to your application
-The application template uses AWS Serverless Application Model (AWS SAM) to define application resources. AWS SAM is an extension of AWS CloudFormation with a simpler syntax for configuring common serverless application resources such as functions, triggers, and APIs. For resources not included in [the SAM specification](https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md), you can use standard [AWS CloudFormation](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-template-resource-type-ref.html) resource types.
-
-## Fetch, tail, and filter Lambda function logs
-
-To simplify troubleshooting, SAM CLI has a command called `sam logs`. `sam logs` lets you fetch logs generated by your deployed Lambda function from the command line. In addition to printing the logs on the terminal, this command has several nifty features to help you quickly find the bug.
-
-`NOTE`: This command works for all AWS Lambda functions; not just the ones you deploy using SAM.
+### SAM Localでエラーが出る
 
 ```bash
-kaidoki-navi-api$ sam logs -n HelloWorldFunction --stack-name "kaidoki-navi-api" --tail
+# キャッシュをクリアして再ビルド
+rm -rf .aws-sam
+sam build
 ```
 
-You can find more information and examples about filtering Lambda function logs in the [SAM CLI Documentation](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-logging.html).
+## 📝 ライセンス
 
-## Tests
-
-Tests are defined in the `tests` folder in this project. Use PIP to install the test dependencies and run tests.
-
-```bash
-kaidoki-navi-api$ pip install -r tests/requirements.txt --user
-# unit test
-kaidoki-navi-api$ python -m pytest tests/unit -v
-# integration test, requiring deploying the stack first.
-# Create the env variable AWS_SAM_STACK_NAME with the name of the stack we are testing
-kaidoki-navi-api$ AWS_SAM_STACK_NAME="kaidoki-navi-api" python -m pytest tests/integration -v
-```
-
-## Cleanup
-
-To delete the sample application that you created, use the AWS CLI. Assuming you used your project name for the stack name, you can run the following:
-
-```bash
-sam delete --stack-name "kaidoki-navi-api"
-```
-
-## Resources
-
-See the [AWS SAM developer guide](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/what-is-sam.html) for an introduction to SAM specification, the SAM CLI, and serverless application concepts.
-
-Next, you can use AWS Serverless Application Repository to deploy ready to use Apps that go beyond hello world samples and learn how authors developed their applications: [AWS Serverless Application Repository main page](https://aws.amazon.com/serverless/serverlessrepo/)
+非公開プロジェクト
