@@ -1,236 +1,283 @@
 # クイックスタートガイド
 
-## 前提条件
+開拓ナビ管理者APIを5分でローカル起動するガイドです。
 
-- **Macbook** (macOS)
-- **Docker Desktop** がインストールされて起動していること
-- **AWS CLI** がインストールされていること
-- **AWS SAM CLI** がインストールされていること
-- **Python 3.12**
+## 📋 前提条件
 
-## 1. 環境のクリーンアップ（初回または問題がある場合）
+以下がインストールされて起動していることを確認してください：
 
-```bash
-# 既存のDocker環境を完全にクリーンアップ
-./scripts/cleanup-docker.sh
-```
+- ✅ **Docker Desktop** (起動済み)
+- ✅ **AWS CLI**
+- ✅ **AWS SAM CLI**
+- ✅ **Python 3.12**
 
-これにより以下が削除されます：
-- すべてのDynamoDBコンテナ
-- すべてのDockerボリューム
-- lambda-localネットワーク
+## 🚀 起動手順
 
-## 2. ローカル環境の起動
+### ⚡️ 初回セットアップ（3ステップ）
+
+#### ステップ1: Dockerコンテナを起動（ターミナル1）
 
 ```bash
-# DynamoDB LocalとDynamoDB Admin GUIを起動
 ./scripts/start-local.sh
 ```
 
-このスクリプトは自動的に：
-1. Docker Desktopが起動しているか確認
-2. lambda-localネットワークを作成
-3. DynamoDB LocalとDynamoDB Adminを起動
-4. DynamoDBテーブルを作成
-5. テストデータを投入
+**何が起こる:**
+- DynamoDB LocalとAdmin GUIが起動
+- ポート8000（DynamoDB API）とポート8002（Admin GUI）が開く
 
-## 3. 動作確認
+**確認:** http://localhost:8002 でDynamoDB Admin GUIが開く
 
-### DynamoDB Admin GUI（port 8002）
-
-ブラウザで以下のURLを開く：
-
-```
-http://localhost:8002
-```
-
-以下のテーブルが表示されればOK：
-- `chirashi-kitchen-articles-local`
-- `chirashi-kitchen-admins-local`
-- `chirashi-kitchen-companies-local`
-- `chirashi-kitchen-stores-local`
-- など
-
-**重要**:
-- ポート8000（http://localhost:8000）をブラウザで開くと400エラーが出ますが、これは正常です
-- ポート8000はDynamoDB APIエンドポイントであり、Webページではありません
-
-### AWS CLIで確認
+#### ステップ2: テーブルを初期化してデータ投入
 
 ```bash
-# テーブル一覧を取得
-aws dynamodb list-tables \
-  --endpoint-url http://localhost:8000 \
-  --region ap-northeast-1
-
-# articlesテーブルの内容を確認
-aws dynamodb scan \
-  --table-name chirashi-kitchen-articles-local \
-  --endpoint-url http://localhost:8000 \
-  --region ap-northeast-1 \
-  --max-items 5
+./scripts/init-dynamodb.sh
+./scripts/seed-data.sh
 ```
 
-## 4. SAM Localの起動
+**何が起こる:**
+- 5つのテーブルが作成される（admins, articles, companies, stores, flyers）
+- テストデータが投入される（管理者3件、コラム3件など）
+
+**確認:** http://localhost:8002 でテーブルとデータが表示される
+
+#### ステップ3: SAM Local APIを起動（ターミナル2 - 別ターミナルを開く）
 
 ```bash
-# Lambdaコードをビルド
-sam build
-
-# SAM Local APIを起動
-sam local start-api \
-  --docker-network lambda-local \
-  --env-vars env.json
+# 新しいターミナルを開いて実行
+./scripts/start-sam-local.sh
 ```
 
-起動すると以下のように表示されます：
+または
 
+```bash
+sam local start-api --env-vars env.json --docker-network lambda-local
 ```
-Mounting AdminLogin at http://127.0.0.1:3000/admin/auth/login [POST]
-Mounting ListArticles at http://127.0.0.1:3000/admin/articles [GET]
+
+**何が起こる:**
+- ポート3000でAPIが起動
+- 管理者APIのエンドポイントが利用可能になる
+
+**確認:** 以下のメッセージが表示されます
+```
+Mounting AdminLoginFunction at http://127.0.0.1:3000/admin/auth/login [POST]
+Mounting ArticlesApiFunction at http://127.0.0.1:3000/admin/articles/list [GET]
 ...
 Running on http://127.0.0.1:3000/
 ```
 
-## 5. APIのテスト
+### ⚡️ 2回目以降の起動（2ステップ）
 
-### 管理者ログイン
+データは既にあるので、2つのサービスを起動するだけ：
 
 ```bash
-curl -X POST http://127.0.0.1:3000/admin/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "admin",
-    "password": "password"
-  }'
+# ターミナル1: Dockerコンテナ起動（停止している場合のみ）
+docker-compose up -d
+
+# ターミナル2: SAM Local起動
+./scripts/start-sam-local.sh
 ```
 
-レスポンス例：
+## ✅ 動作確認
+
+### 方法1: curlでテスト
+
+```bash
+# 1. ログイン
+curl -X POST http://localhost:3000/admin/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"password"}'
+```
+
+**期待されるレスポンス:**
 ```json
 {
-  "token": "eyJ...",
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "admin": {
-    "adminId": "admin-001",
+    "adminId": "admin001",
     "username": "admin",
-    "role": "system_admin"
+    "role": "system_admin",
+    "name": "システム管理者"
   }
 }
 ```
 
-### 記事一覧の取得
-
 ```bash
-# 上記で取得したトークンを使用
-TOKEN="eyJ..."
+# 2. トークンを環境変数に保存
+TOKEN="<上記で取得したトークン>"
 
-curl -X GET "http://127.0.0.1:3000/admin/articles?page=1&limit=10" \
-  -H "Authorization: Bearer $TOKEN"
+# 3. コラム一覧を取得
+curl -H "Authorization: Bearer $TOKEN" \
+  http://localhost:3000/admin/articles/list
 ```
 
-### 記事の作成
+**期待されるレスポンス:**
+```json
+{
+  "items": [
+    {
+      "articleId": 1,
+      "title": "2025年1月の値上げ情報まとめ",
+      "category": "値上げ情報",
+      "status": "published",
+      ...
+    }
+  ],
+  "pagination": {
+    "currentPage": 1,
+    "totalPages": 1,
+    "totalItems": 2,
+    "limit": 20
+  }
+}
+```
 
+### 方法2: Talend API Testerでテスト（推奨）
+
+1. Chrome拡張機能「Talend API Tester」をインストール
+2. `api-collection/Kaidoki-navi.postman_collection.json` をインポート
+3. 「管理者ログイン」を実行（トークンが自動保存される）
+4. 各種APIを実行
+
+**詳細:** [api-collection/QUICKSTART.md](./api-collection/QUICKSTART.md)
+
+## 🎯 起動後に確認すべき3つのURL
+
+| サービス | URL | 説明 |
+|---------|-----|------|
+| DynamoDB Admin | http://localhost:8002 | データベースGUI（テーブルとデータを確認） |
+| API Gateway | http://localhost:3000 | 管理者APIエンドポイント |
+| DynamoDB API | http://localhost:8000 | DynamoDB Local（直接アクセス不要） |
+
+## ⚠️ よくあるエラーと解決方法
+
+### ❌ `Failed to connect to localhost port 3000`
+
+**原因:** SAM Localが起動していない
+
+**解決策:**
 ```bash
-curl -X POST http://127.0.0.1:3000/admin/articles \
-  -H "Authorization: Bearer $TOKEN" \
+# 別のターミナルを開いて
+./scripts/start-sam-local.sh
+```
+
+> **重要:** SAM Localは `start-local.sh` とは**別のターミナル**で起動する必要があります！
+
+### ❌ `Table does not exist` / `ResourceNotFoundException`
+
+**原因:** DynamoDBテーブルが初期化されていない
+
+**解決策:**
+```bash
+./scripts/init-dynamodb.sh
+./scripts/seed-data.sh
+```
+
+### ❌ `Authentication required` (401)
+
+**原因:** トークンが無効または期限切れ
+
+**解決策:** 再度ログインしてトークンを取得
+```bash
+curl -X POST http://localhost:3000/admin/auth/login \
   -H "Content-Type: application/json" \
-  -d '{
-    "title": "新しいコラム記事",
-    "content": "これはテスト記事です。",
-    "category": "health",
-    "status": "draft",
-    "tags": ["テスト", "サンプル"]
-  }'
+  -d '{"username":"admin","password":"password"}'
 ```
 
-### DynamoDB Admin GUIで確認
+### ❌ DynamoDB Adminでテーブルが見えない
 
-1. ブラウザで http://localhost:8002 を開く
-2. `chirashi-kitchen-articles-local` テーブルをクリック
-3. 作成した記事が表示されることを確認
+**原因:** Dockerコンテナが起動していない
 
-## トラブルシューティング
-
-### ポート8002が開けない
-
+**解決策:**
 ```bash
-# DynamoDB Adminを再起動
-docker-compose restart dynamodb-admin
+# コンテナの状態確認
+docker ps
 
-# 10秒待ってからブラウザでアクセス
-sleep 10
+# 停止している場合
+docker-compose up -d
 ```
 
-または：
+### ❌ `Cannot connect to the Docker daemon`
+
+**原因:** Docker Desktopが起動していない
+
+**解決策:** Docker Desktopを起動して、緑のアイコンになるまで待つ
+
+## 📝 テストユーザー情報
+
+| ユーザー名 | パスワード | 役割 | 権限 |
+|-----------|----------|------|------|
+| admin | password | system_admin | 全権限 |
+| company | password | company_admin | 企業管理 |
+| store | password | store_user | 店舗管理 |
+
+## 🛑 環境の停止
 
 ```bash
-# 完全に再起動
-./scripts/cleanup-docker.sh
+# SAM Local停止: 実行中のターミナルでCtrl+C
+
+# Dockerコンテナ停止
+docker-compose down
+
+# データも削除する場合（完全リセット）
+docker-compose down -v
+```
+
+## 🔄 環境のリセット
+
+データベースを完全に初期化したい場合：
+
+```bash
+# 1. 全て停止してデータ削除
+docker-compose down -v
+
+# 2. 再セットアップ
 ./scripts/start-local.sh
+./scripts/init-dynamodb.sh
+./scripts/seed-data.sh
+
+# 3. SAM Local起動（別ターミナル）
+./scripts/start-sam-local.sh
 ```
 
-### DynamoDB Localが起動しない
+## 📚 次のステップ
+
+環境が起動したら：
+
+1. **APIをテストする**
+   - [api-collection/QUICKSTART.md](./api-collection/QUICKSTART.md) - Talend API Testerでテスト
+
+2. **開発環境の詳細を確認**
+   - [LOCAL_SETUP_GUIDE.md](./LOCAL_SETUP_GUIDE.md) - 詳細なセットアップガイド
+
+3. **アーキテクチャを理解する**
+   - [docs/architecture.md](./docs/architecture.md) - システム設計
+
+4. **テストを実行する**
+   - [docs/testing.md](./docs/testing.md) - テストガイド
+
+## 💡 ワンライナーで起動（上級者向け）
 
 ```bash
-# ログを確認
-docker logs dynamodb
-# エラーが出ている場合は完全クリーンアップ
-./scripts/cleanup-docker.sh
-./scripts/start-local.sh
+# ターミナル1（バックグラウンド）
+docker-compose up -d && sleep 5 && ./scripts/init-dynamodb.sh && ./scripts/seed-data.sh
+
+# ターミナル2
+./scripts/start-sam-local.sh
 ```
 
-### SAM Localがエラーを出す
-
-```bash
-# キャッシュをクリアして再ビルド
-rm -rf .aws-sam
-sam build
-```
-
-## ディレクトリ構成
+## 📊 プロジェクト構成
 
 ```
 kaidoki-navi-api/
-├── src/
-│   ├── admin/           # 管理者API
-│   │   ├── handlers/    # Lambdaハンドラ
-│   │   └── repositories/# DynamoDBリポジトリ
-│   ├── user/            # ユーザーAPI（未実装）
-│   ├── utils/           # 共通ユーティリティ
-│   └── config/          # 設定ファイル
-├── scripts/
-│   ├── start-local.sh   # 環境起動スクリプト
-│   ├── cleanup-docker.sh # クリーンアップスクリプト
-│   ├── init-dynamodb.sh # テーブル作成スクリプト
-│   └── seed-data.sh     # テストデータ投入
-├── docs/                # 設計書
-├── template.yaml        # SAM テンプレート
-├── docker-compose.yml   # Docker設定
-└── env.json            # 環境変数
+├── src/admin/              # 管理者API実装
+│   ├── handlers/           # Lambda関数ハンドラー
+│   ├── services/           # ビジネスロジック
+│   └── repositories/       # データアクセス層
+├── scripts/                # 起動・管理スクリプト
+├── api-collection/         # APIテスト用コレクション
+├── docs/                   # ドキュメント
+├── template.yaml           # SAM設定（インフラ定義）
+└── docker-compose.yml      # Docker設定
 ```
 
-## 停止方法
-
-### DynamoDBだけ停止（データは失われる - インメモリモード）
-
-```bash
-docker-compose down
-```
-
-### SAM Localを停止
-
-`Ctrl+C` で停止
-
-## 次のステップ
-
-1. `docs/api-design-admin.yaml` でAPI仕様を確認
-2. `docs/database-design.md` でDB設計を確認
-3. 追加のAPI機能を実装
-4. AWSへのデプロイ準備（deploy.sh, destroy.sh使用）
-
-## テストアカウント
-
-| ユーザー名 | パスワード | ロール |
-|-----------|----------|-------|
-| admin | password | システム管理者 |
-| company | password | 企業管理者 |
-| store | password | 店舗ユーザー |
+Happy Coding! 🚀
