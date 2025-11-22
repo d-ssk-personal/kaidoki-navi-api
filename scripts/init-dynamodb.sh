@@ -14,9 +14,9 @@ echo "(テーブル定義はtemplate.yamlから自動生成されています)"
 echo ""
 
 # Adminsテーブル
-echo "Creating chirashi-kitchen-admins table..."
+echo "Creating admins table..."
 aws dynamodb create-table \
-  --table-name chirashi-kitchen-admins \
+  --table-name admins \
   --attribute-definitions \
     AttributeName=adminId,AttributeType=S \
     AttributeName=username,AttributeType=S \
@@ -28,12 +28,12 @@ aws dynamodb create-table \
     '[{"IndexName": "UsernameIndex", "KeySchema": [{"AttributeName": "username", "KeyType": "HASH"}], "Projection": {"ProjectionType": "ALL"}}, {"IndexName": "CompanyIndex", "KeySchema": [{"AttributeName": "companyId", "KeyType": "HASH"}, {"AttributeName": "role", "KeyType": "RANGE"}], "Projection": {"ProjectionType": "ALL"}}]' \
   --endpoint-url $ENDPOINT \
   --region $REGION \
-  --no-cli-pager 2>/dev/null || echo "chirashi-kitchen-admins table already exists"
+  --no-cli-pager 2>/dev/null || echo "admins table already exists"
 
 # Articlesテーブル
-echo "Creating chirashi-kitchen-articles table..."
+echo "Creating articles table..."
 aws dynamodb create-table \
-  --table-name chirashi-kitchen-articles \
+  --table-name articles \
   --attribute-definitions \
     AttributeName=articleId,AttributeType=N \
     AttributeName=status,AttributeType=S \
@@ -45,12 +45,12 @@ aws dynamodb create-table \
     '[{"IndexName": "StatusIndex", "KeySchema": [{"AttributeName": "status", "KeyType": "HASH"}, {"AttributeName": "publishedAt", "KeyType": "RANGE"}], "Projection": {"ProjectionType": "ALL"}}, {"IndexName": "CategoryIndex", "KeySchema": [{"AttributeName": "category", "KeyType": "HASH"}, {"AttributeName": "publishedAt", "KeyType": "RANGE"}], "Projection": {"ProjectionType": "ALL"}}]' \
   --endpoint-url $ENDPOINT \
   --region $REGION \
-  --no-cli-pager 2>/dev/null || echo "chirashi-kitchen-articles table already exists"
+  --no-cli-pager 2>/dev/null || echo "articles table already exists"
 
 # Companiesテーブル
-echo "Creating chirashi-kitchen-companies table..."
+echo "Creating companies table..."
 aws dynamodb create-table \
-  --table-name chirashi-kitchen-companies \
+  --table-name companies \
   --attribute-definitions \
     AttributeName=companyId,AttributeType=S \
     AttributeName=contractStatus,AttributeType=S \
@@ -61,12 +61,12 @@ aws dynamodb create-table \
     '[{"IndexName": "ContractStatusIndex", "KeySchema": [{"AttributeName": "contractStatus", "KeyType": "HASH"}, {"AttributeName": "contractPlan", "KeyType": "RANGE"}], "Projection": {"ProjectionType": "ALL"}}]' \
   --endpoint-url $ENDPOINT \
   --region $REGION \
-  --no-cli-pager 2>/dev/null || echo "chirashi-kitchen-companies table already exists"
+  --no-cli-pager 2>/dev/null || echo "companies table already exists"
 
 # Storesテーブル
-echo "Creating chirashi-kitchen-stores table..."
+echo "Creating stores table..."
 aws dynamodb create-table \
-  --table-name chirashi-kitchen-stores \
+  --table-name stores \
   --attribute-definitions \
     AttributeName=storeId,AttributeType=S \
     AttributeName=companyId,AttributeType=S \
@@ -78,12 +78,12 @@ aws dynamodb create-table \
     '[{"IndexName": "CompanyIndex", "KeySchema": [{"AttributeName": "companyId", "KeyType": "HASH"}, {"AttributeName": "storeId", "KeyType": "RANGE"}], "Projection": {"ProjectionType": "ALL"}}, {"IndexName": "RegionIndex", "KeySchema": [{"AttributeName": "prefecture", "KeyType": "HASH"}, {"AttributeName": "region", "KeyType": "RANGE"}], "Projection": {"ProjectionType": "ALL"}}]' \
   --endpoint-url $ENDPOINT \
   --region $REGION \
-  --no-cli-pager 2>/dev/null || echo "chirashi-kitchen-stores table already exists"
+  --no-cli-pager 2>/dev/null || echo "stores table already exists"
 
 # Flyersテーブル
-echo "Creating chirashi-kitchen-flyers table..."
+echo "Creating flyers table..."
 aws dynamodb create-table \
-  --table-name chirashi-kitchen-flyers \
+  --table-name flyers \
   --attribute-definitions \
     AttributeName=flyerId,AttributeType=S \
     AttributeName=storeId,AttributeType=S \
@@ -96,12 +96,12 @@ aws dynamodb create-table \
     '[{"IndexName": "StoreIndex", "KeySchema": [{"AttributeName": "storeId", "KeyType": "HASH"}, {"AttributeName": "validFrom", "KeyType": "RANGE"}], "Projection": {"ProjectionType": "ALL"}}, {"IndexName": "RegionIndex", "KeySchema": [{"AttributeName": "prefecture", "KeyType": "HASH"}, {"AttributeName": "validFrom", "KeyType": "RANGE"}], "Projection": {"ProjectionType": "ALL"}}, {"IndexName": "CompanyIndex", "KeySchema": [{"AttributeName": "companyId", "KeyType": "HASH"}, {"AttributeName": "validFrom", "KeyType": "RANGE"}], "Projection": {"ProjectionType": "ALL"}}]' \
   --endpoint-url $ENDPOINT \
   --region $REGION \
-  --no-cli-pager 2>/dev/null || echo "chirashi-kitchen-flyers table already exists"
+  --no-cli-pager 2>/dev/null || echo "flyers table already exists"
 
 # Usersテーブル
-echo "Creating chirashi-kitchen-users table..."
+echo "Creating users table..."
 aws dynamodb create-table \
-  --table-name chirashi-kitchen-users \
+  --table-name users \
   --attribute-definitions \
     AttributeName=userId,AttributeType=S \
     AttributeName=email,AttributeType=S \
@@ -111,12 +111,12 @@ aws dynamodb create-table \
     '[{"IndexName": "EmailIndex", "KeySchema": [{"AttributeName": "email", "KeyType": "HASH"}], "Projection": {"ProjectionType": "ALL"}}]' \
   --endpoint-url $ENDPOINT \
   --region $REGION \
-  --no-cli-pager 2>/dev/null || echo "chirashi-kitchen-users table already exists"
+  --no-cli-pager 2>/dev/null || echo "users table already exists"
 
 # Favorite Storesテーブル
-echo "Creating chirashi-kitchen-favorite-stores table..."
+echo "Creating favorite-stores table..."
 aws dynamodb create-table \
-  --table-name chirashi-kitchen-favorite-stores \
+  --table-name favorite-stores \
   --attribute-definitions \
     AttributeName=userId,AttributeType=S \
     AttributeName=storeId,AttributeType=S \
@@ -124,24 +124,24 @@ aws dynamodb create-table \
   --billing-mode PAY_PER_REQUEST\
   --endpoint-url $ENDPOINT \
   --region $REGION \
-  --no-cli-pager 2>/dev/null || echo "chirashi-kitchen-favorite-stores table already exists"
+  --no-cli-pager 2>/dev/null || echo "favorite-stores table already exists"
 
 # Recipesテーブル
-echo "Creating chirashi-kitchen-recipes table..."
+echo "Creating recipes table..."
 aws dynamodb create-table \
-  --table-name chirashi-kitchen-recipes \
+  --table-name recipes \
   --attribute-definitions \
     AttributeName=flyerId,AttributeType=S \
   --key-schema AttributeName=flyerId,KeyType=HASH \
   --billing-mode PAY_PER_REQUEST\
   --endpoint-url $ENDPOINT \
   --region $REGION \
-  --no-cli-pager 2>/dev/null || echo "chirashi-kitchen-recipes table already exists"
+  --no-cli-pager 2>/dev/null || echo "recipes table already exists"
 
 # Shared Recipesテーブル
-echo "Creating chirashi-kitchen-shared-recipes table..."
+echo "Creating shared-recipes table..."
 aws dynamodb create-table \
-  --table-name chirashi-kitchen-shared-recipes \
+  --table-name shared-recipes \
   --attribute-definitions \
     AttributeName=sharedRecipeId,AttributeType=S \
     AttributeName=flyerId,AttributeType=S \
@@ -152,7 +152,7 @@ aws dynamodb create-table \
     '[{"IndexName": "FlyerIndex", "KeySchema": [{"AttributeName": "flyerId", "KeyType": "HASH"}, {"AttributeName": "sharedAt", "KeyType": "RANGE"}], "Projection": {"ProjectionType": "ALL"}}]' \
   --endpoint-url $ENDPOINT \
   --region $REGION \
-  --no-cli-pager 2>/dev/null || echo "chirashi-kitchen-shared-recipes table already exists"
+  --no-cli-pager 2>/dev/null || echo "shared-recipes table already exists"
 
 
 echo ""

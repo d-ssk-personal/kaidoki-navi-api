@@ -205,7 +205,7 @@ Resources:
   AdminsTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub chirashi-kitchen-admins-${Environment}
+      TableName: admins
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: adminId
@@ -239,7 +239,7 @@ Resources:
   ArticlesTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub chirashi-kitchen-articles-${Environment}
+      TableName: articles
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: articleId
@@ -275,7 +275,7 @@ Resources:
   CompaniesTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub chirashi-kitchen-companies-${Environment}
+      TableName: companies
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: companyId
@@ -301,7 +301,7 @@ Resources:
   StoresTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub chirashi-kitchen-stores-${Environment}
+      TableName: stores
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: storeId
@@ -337,7 +337,7 @@ Resources:
   FlyersTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub chirashi-kitchen-flyers-${Environment}
+      TableName: flyers
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: flyerId
@@ -383,7 +383,7 @@ Resources:
   UsersTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub chirashi-kitchen-users-${Environment}
+      TableName: users
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: userId
@@ -405,7 +405,7 @@ Resources:
   FavoriteStoresTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub chirashi-kitchen-favorite-stores-${Environment}
+      TableName: favorite-stores
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: userId
@@ -422,7 +422,7 @@ Resources:
   RecipesTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub chirashi-kitchen-recipes-${Environment}
+      TableName: recipes
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: flyerId
@@ -438,7 +438,7 @@ Resources:
   SharedRecipesTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub chirashi-kitchen-shared-recipes-${Environment}
+      TableName: shared-recipes
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: sharedRecipeId

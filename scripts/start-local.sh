@@ -76,7 +76,7 @@ echo ""
 echo "🗄️  Step 6: DynamoDBテーブルを確認中..."
 
 # articlesテーブルの存在確認
-if aws dynamodb describe-table --table-name chirashi-kitchen-articles --endpoint-url $ENDPOINT --region $REGION --no-cli-pager >/dev/null 2>&1; then
+if aws dynamodb describe-table --table-name articles --endpoint-url $ENDPOINT --region $REGION --no-cli-pager >/dev/null 2>&1; then
   echo "  ✅ テーブルは既に存在します"
 else
   echo "  テーブルを作成します..."

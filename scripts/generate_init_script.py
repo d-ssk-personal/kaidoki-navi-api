@@ -48,19 +48,18 @@ def load_template() -> Dict[str, Any]:
 def extract_table_name(table_name_def: Any) -> str:
     """
     CloudFormationのテーブル名定義からベース名を抽出
-    例: !Sub chirashi-kitchen-articles-${Environment} -> chirashi-kitchen-articles
+    例: admins -> admins
     """
     if isinstance(table_name_def, str):
-        # 単純な文字列の場合
-        return table_name_def.replace('-${Environment}', '')
+        # 単純な文字列の場合（そのまま返す）
+        return table_name_def
     elif isinstance(table_name_def, dict) and 'Fn::Sub' in table_name_def:
-        # !Sub の場合
+        # !Sub の場合（念のため対応）
         sub_value = table_name_def['Fn::Sub']
-        # ${Environment} を削除
         return sub_value.replace('-${Environment}', '')
     else:
         # その他の形式
-        return str(table_name_def).replace('-${Environment}', '')
+        return str(table_name_def)
 
 
 def convert_attribute_type(cf_type: str) -> str:
@@ -105,7 +104,7 @@ def generate_table_creation_command(table_name: str, table_def: Dict[str, Any]) 
         key_schema_parts.append(f"AttributeName={key['AttributeName']},KeyType={key['KeyType']}")
 
     # テーブル表示名
-    display_name = table_name.replace('chirashi-kitchen-', '').replace('-', ' ').title()
+    display_name = table_name.replace('-', ' ').title()
 
     # コマンドの開始
     cmd = f'''# {display_name}テーブル
