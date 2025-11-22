@@ -10,7 +10,7 @@ echo "DynamoDB Localのテーブルを作成します..."
 # 管理者テーブル
 echo "Creating Admins table..."
 aws dynamodb create-table \
-  --table-name chirashi-kitchen-admins-local \
+  --table-name chirashi-kitchen-admins \
   --attribute-definitions \
     AttributeName=adminId,AttributeType=S \
     AttributeName=username,AttributeType=S \
@@ -41,7 +41,7 @@ aws dynamodb create-table \
 # コラムテーブル
 echo "Creating Articles table..."
 aws dynamodb create-table \
-  --table-name chirashi-kitchen-articles-local \
+  --table-name chirashi-kitchen-articles \
   --attribute-definitions \
     AttributeName=articleId,AttributeType=N \
     AttributeName=status,AttributeType=S \
@@ -75,7 +75,7 @@ aws dynamodb create-table \
 # 企業テーブル
 echo "Creating Companies table..."
 aws dynamodb create-table \
-  --table-name chirashi-kitchen-companies-local \
+  --table-name chirashi-kitchen-companies \
   --attribute-definitions \
     AttributeName=companyId,AttributeType=S \
     AttributeName=contractStatus,AttributeType=S \
@@ -100,7 +100,7 @@ aws dynamodb create-table \
 # 店舗テーブル
 echo "Creating Stores table..."
 aws dynamodb create-table \
-  --table-name chirashi-kitchen-stores-local \
+  --table-name chirashi-kitchen-stores \
   --attribute-definitions \
     AttributeName=storeId,AttributeType=S \
     AttributeName=companyId,AttributeType=S \
@@ -134,7 +134,7 @@ aws dynamodb create-table \
 # チラシテーブル
 echo "Creating Flyers table..."
 aws dynamodb create-table \
-  --table-name chirashi-kitchen-flyers-local \
+  --table-name chirashi-kitchen-flyers \
   --attribute-definitions \
     AttributeName=flyerId,AttributeType=S \
     AttributeName=storeId,AttributeType=S \
@@ -177,7 +177,7 @@ aws dynamodb create-table \
 # ユーザーテーブル
 echo "Creating Users table..."
 aws dynamodb create-table \
-  --table-name chirashi-kitchen-users-local \
+  --table-name chirashi-kitchen-users \
   --attribute-definitions \
     AttributeName=userId,AttributeType=S \
     AttributeName=email,AttributeType=S \
@@ -198,7 +198,7 @@ aws dynamodb create-table \
 # お気に入り店舗テーブル
 echo "Creating FavoriteStores table..."
 aws dynamodb create-table \
-  --table-name chirashi-kitchen-favorite-stores-local \
+  --table-name chirashi-kitchen-favorite-stores \
   --attribute-definitions \
     AttributeName=userId,AttributeType=S \
     AttributeName=storeId,AttributeType=S \
@@ -213,7 +213,7 @@ aws dynamodb create-table \
 # レシピテーブル
 echo "Creating Recipes table..."
 aws dynamodb create-table \
-  --table-name chirashi-kitchen-recipes-local \
+  --table-name chirashi-kitchen-recipes \
   --attribute-definitions \
     AttributeName=flyerId,AttributeType=S \
   --key-schema AttributeName=flyerId,KeyType=HASH \
@@ -225,7 +225,7 @@ aws dynamodb create-table \
 # 共有レシピテーブル
 echo "Creating SharedRecipes table..."
 aws dynamodb create-table \
-  --table-name chirashi-kitchen-shared-recipes-local \
+  --table-name chirashi-kitchen-shared-recipes \
   --attribute-definitions \
     AttributeName=sharedRecipeId,AttributeType=S \
     AttributeName=flyerId,AttributeType=S \

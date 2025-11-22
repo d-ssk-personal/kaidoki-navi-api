@@ -172,8 +172,7 @@ sleep 10
 
 ```bash
 # ログを確認
-docker logs dynamodb-local
-
+docker logs dynamodb
 # エラーが出ている場合は完全クリーンアップ
 ./scripts/cleanup-docker.sh
 ./scripts/start-local.sh

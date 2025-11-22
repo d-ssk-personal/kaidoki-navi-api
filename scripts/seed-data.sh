@@ -12,7 +12,7 @@ echo "Creating admin users..."
 
 # システム管理者
 aws dynamodb put-item \
-  --table-name chirashi-kitchen-admins-local \
+  --table-name chirashi-kitchen-admins \
   --item '{
     "adminId": {"S": "admin001"},
     "username": {"S": "admin"},
@@ -29,7 +29,7 @@ aws dynamodb put-item \
 
 # 企業管理者
 aws dynamodb put-item \
-  --table-name chirashi-kitchen-admins-local \
+  --table-name chirashi-kitchen-admins \
   --item '{
     "adminId": {"S": "admin002"},
     "username": {"S": "company"},
@@ -48,7 +48,7 @@ aws dynamodb put-item \
 
 # 店舗ユーザー
 aws dynamodb put-item \
-  --table-name chirashi-kitchen-admins-local \
+  --table-name chirashi-kitchen-admins \
   --item '{
     "adminId": {"S": "admin003"},
     "username": {"S": "store"},
@@ -77,7 +77,7 @@ echo ""
 echo "Creating sample articles..."
 
 aws dynamodb put-item \
-  --table-name chirashi-kitchen-articles-local \
+  --table-name chirashi-kitchen-articles \
   --item '{
     "articleId": {"N": "1"},
     "title": {"S": "2025年1月の値上げ情報まとめ"},
@@ -103,7 +103,7 @@ aws dynamodb put-item \
   --no-cli-pager 2>/dev/null
 
 aws dynamodb put-item \
-  --table-name chirashi-kitchen-articles-local \
+  --table-name chirashi-kitchen-articles \
   --item '{
     "articleId": {"N": "2"},
     "title": {"S": "今週の特売情報：スーパー各社で鶏肉が安い！"},
@@ -130,7 +130,7 @@ aws dynamodb put-item \
   --no-cli-pager 2>/dev/null
 
 aws dynamodb put-item \
-  --table-name chirashi-kitchen-articles-local \
+  --table-name chirashi-kitchen-articles \
   --item '{
     "articleId": {"N": "3"},
     "title": {"S": "【下書き】節約レシピ特集"},
@@ -156,7 +156,7 @@ echo ""
 # 企業データの投入
 echo "Creating sample company..."
 aws dynamodb put-item \
-  --table-name chirashi-kitchen-companies-local \
+  --table-name chirashi-kitchen-companies \
   --item '{
     "companyId": {"S": "COMP001"},
     "name": {"S": "サンプル企業"},
@@ -175,7 +175,7 @@ echo ""
 # 店舗データの投入
 echo "Creating sample store..."
 aws dynamodb put-item \
-  --table-name chirashi-kitchen-stores-local \
+  --table-name chirashi-kitchen-stores \
   --item '{
     "storeId": {"S": "STORE001"},
     "companyId": {"S": "COMP001"},

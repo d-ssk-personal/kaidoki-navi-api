@@ -100,12 +100,12 @@ http://localhost:8002
 
 以下のテーブルが表示されていればOKです：
 
-- chirashi-kitchen-articles-local
-- chirashi-kitchen-admins-local
-- chirashi-kitchen-companies-local
-- chirashi-kitchen-stores-local
-- chirashi-kitchen-flyers-local
-- chirashi-kitchen-users-local
+- chirashi-kitchen-articles
+- chirashi-kitchen-admins
+- chirashi-kitchen-companies
+- chirashi-kitchen-stores
+- chirashi-kitchen-flyers
+- chirashi-kitchen-users
 - 他...
 
 ### APIの動作確認
@@ -163,7 +163,7 @@ curl -X POST http://127.0.0.1:3000/admin/articles/add \
 
 #### 4. DynamoDB Adminで確認
 
-http://localhost:8002 を開き、`chirashi-kitchen-articles-local` テーブルを確認すると、追加したコラムが表示されます。
+http://localhost:8002 を開き、`chirashi-kitchen-articles` テーブルを確認すると、追加したコラムが表示されます。
 
 ## テストログイン情報
 
