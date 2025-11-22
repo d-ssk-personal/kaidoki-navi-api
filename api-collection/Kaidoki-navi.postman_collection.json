@@ -286,6 +286,235 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "admin-accounts",
+      "item": [
+        {
+          "name": "アカウント一覧取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/accounts/list?page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "accounts", "list"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "ページ番号"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "1ページあたりの件数"
+                },
+                {
+                  "key": "search",
+                  "value": "検索キーワード",
+                  "description": "名前・ユーザー名で検索",
+                  "disabled": true
+                },
+                {
+                  "key": "role",
+                  "value": "system_admin",
+                  "description": "役割フィルター（system_admin/company_admin/store_user）",
+                  "disabled": true
+                },
+                {
+                  "key": "companyId",
+                  "value": "company_001",
+                  "description": "企業IDフィルター（システム管理者のみ）",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "管理者アカウントの一覧を取得します。\n\n**権限による制限:**\n- システム管理者: 全アカウント\n- 企業管理者: 自社のアカウントのみ\n- 店舗ユーザー: 自分のアカウントのみ"
+          },
+          "response": []
+        },
+        {
+          "name": "アカウント詳細取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/accounts/list/admin_001",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "accounts", "list", "admin_001"]
+            },
+            "description": "指定したIDの管理者アカウント詳細情報を取得します。\n\n権限チェックが行われます。"
+          },
+          "response": []
+        },
+        {
+          "name": "アカウント作成",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"test_user\",\n  \"name\": \"テストユーザー\",\n  \"email\": \"test@example.com\",\n  \"password\": \"SecurePassword123\",\n  \"role\": \"system_admin\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/accounts/add",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "accounts", "add"]
+            },
+            "description": "新しい管理者アカウントを作成します。\n\n**注意: 現在は動作確認のため認証なしで実行できます**\n\n**必須フィールド:**\n- username: ユーザー名（ログインID）\n- name: 表示名\n- email: メールアドレス\n- password: パスワード（8文字以上推奨）\n- role: 役割（system_admin/company_admin/store_user）\n\n**役割別の追加フィールド:**\n- company_admin, store_user: companyId, companyName（必須）\n- store_user: storeId, storeName（必須）\n\n**権限:**\n- システム管理者: 全役割のアカウントを作成可能\n- 企業管理者: 自社の企業管理者・店舗ユーザーを作成可能\n- 店舗ユーザー: 作成不可"
+          },
+          "response": []
+        },
+        {
+          "name": "アカウント作成（企業管理者）",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"company_admin_001\",\n  \"name\": \"企業管理者\",\n  \"email\": \"company_admin@example.com\",\n  \"password\": \"SecurePassword123\",\n  \"role\": \"company_admin\",\n  \"companyId\": \"company_001\",\n  \"companyName\": \"スーパーAグループ\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/accounts/add",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "accounts", "add"]
+            },
+            "description": "企業管理者アカウントを作成するサンプルです。\n\ncompanyIdとcompanyNameが必須です。"
+          },
+          "response": []
+        },
+        {
+          "name": "アカウント作成（店舗ユーザー）",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"store_user_001\",\n  \"name\": \"店舗ユーザー\",\n  \"email\": \"store_user@example.com\",\n  \"password\": \"SecurePassword123\",\n  \"role\": \"store_user\",\n  \"companyId\": \"company_001\",\n  \"companyName\": \"スーパーAグループ\",\n  \"storeId\": \"store_001\",\n  \"storeName\": \"スーパーA 新宿店\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/accounts/add",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "accounts", "add"]
+            },
+            "description": "店舗ユーザーアカウントを作成するサンプルです。\n\ncompanyId、companyName、storeId、storeNameが必須です。"
+          },
+          "response": []
+        },
+        {
+          "name": "アカウント更新",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"更新された名前\",\n  \"email\": \"updated@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/accounts/update/admin_001",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "accounts", "update", "admin_001"]
+            },
+            "description": "既存のアカウントを更新します。\n\n更新したいフィールドのみ指定してください。\n\n**更新可能なフィールド:**\n- username: ユーザー名\n- name: 表示名\n- email: メールアドレス\n- password: パスワード（指定した場合のみ更新）\n- role: 役割\n- companyId, companyName: 企業情報\n- storeId, storeName: 店舗情報\n\n**権限チェック:**\n権限に応じてアクセス可能なアカウントのみ更新できます。"
+          },
+          "response": []
+        },
+        {
+          "name": "パスワード変更",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"NewSecurePassword456\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/accounts/update/admin_001",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "accounts", "update", "admin_001"]
+            },
+            "description": "アカウントのパスワードを変更します。\n\nパスワードはbcryptでハッシュ化されて保存されます。"
+          },
+          "response": []
+        },
+        {
+          "name": "アカウント削除",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/accounts/delete/admin_001",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "accounts", "delete", "admin_001"]
+            },
+            "description": "指定したIDのアカウントを削除します。\n\n**制限事項:**\n- 自分自身のアカウントは削除できません\n- 権限に応じてアクセス可能なアカウントのみ削除できます"
+          },
+          "response": []
+        }
+      ]
     }
   ],
   "variable": [
