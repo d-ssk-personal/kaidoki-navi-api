@@ -7,12 +7,14 @@ services:
     container_name: dynamodb-local
     ports:
       - "8000:8000"
-    volumes:
-      - dynamodb-data:/home/dynamodblocal/data
-    working_dir: /home/dynamodblocal
-    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath /home/dynamodblocal/data"
+    command: "-jar DynamoDBLocal.jar -sharedDb -inMemory"
     networks:
       - lambda-local
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # DynamoDB Admin (管理UI) - http://localhost:8002
   dynamodb-admin:
@@ -26,13 +28,11 @@ services:
       - AWS_ACCESS_KEY_ID=test
       - AWS_SECRET_ACCESS_KEY=test
     depends_on:
-      - dynamodb-local
+      dynamodb-local:
+        condition: service_healthy
     networks:
       - lambda-local
 
 networks:
   lambda-local:
     driver: bridge
-
-volumes:
-  dynamodb-data:

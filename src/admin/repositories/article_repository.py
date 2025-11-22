@@ -12,7 +12,13 @@ from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-dynamodb = boto3.resource('dynamodb', region_name=settings.AWS_REGION)
+# DynamoDB接続設定（ローカル開発環境対応）
+dynamodb_config = {'region_name': settings.AWS_REGION}
+if settings.DYNAMODB_ENDPOINT_URL:
+    dynamodb_config['endpoint_url'] = settings.DYNAMODB_ENDPOINT_URL
+    logger.info(f"Using DynamoDB endpoint: {settings.DYNAMODB_ENDPOINT_URL}")
+
+dynamodb = boto3.resource('dynamodb', **dynamodb_config)
 
 
 class ArticleRepository:

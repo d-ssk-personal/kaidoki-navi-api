@@ -1,111 +1,119 @@
 #!/bin/bash
 
-# ローカル開発環境起動スクリプト
-
 set -e
 
-RESET_DATA=false
-
-# オプション解析
-while [[ $# -gt 0 ]]; do
-  case $1 in
-    --reset)
-      RESET_DATA=true
-      shift
-      ;;
-    *)
-      echo "Unknown option: $1"
-      echo "Usage: $0 [--reset]"
-      echo "  --reset: DynamoDBのデータを削除して初期化します"
-      exit 1
-      ;;
-  esac
-done
-
-echo "=================================="
+echo "======================================"
 echo "ローカル開発環境を起動します"
-echo "=================================="
+echo "======================================"
 echo ""
 
-# Dockerが起動しているか確認
+# 環境変数
+export ENDPOINT="http://localhost:8000"
+export REGION="ap-northeast-1"
+
+# Step 1: Dockerが起動しているか確認
+echo "🐳 Step 1: Docker Desktop の確認..."
 if ! docker info > /dev/null 2>&1; then
-  echo "❌ Dockerが起動していません。Dockerを起動してから再度実行してください。"
+  echo "  ❌ Docker Desktopが起動していません"
+  echo "  Docker Desktopを起動してから再度実行してください"
   exit 1
 fi
-
-# --reset オプションが指定された場合、データを削除
-if [ "$RESET_DATA" = true ]; then
-  echo "⚠️  データをリセットします..."
-  docker-compose down -v
-  echo ""
-fi
-
-# 1. Docker Composeでバックエンドサービスを起動
-echo "🚀 DynamoDB Local と DynamoDB Admin を起動中..."
-docker-compose up -d
-
-# DynamoDB Localの起動を待つ
-echo "⏳ DynamoDB Local の起動を待機中..."
-sleep 5
-
-# 2. DynamoDBテーブルの存在確認
-ENDPOINT="http://localhost:8000"
-TABLE_NAME="chirashi-kitchen-articles-local"
-
+echo "  ✅ Docker Desktop は起動しています"
 echo ""
-echo "🔍 既存のテーブルを確認中..."
 
-# テーブルが存在するかチェック
-if aws dynamodb describe-table \
-  --table-name $TABLE_NAME \
-  --endpoint-url $ENDPOINT \
-  --region ap-northeast-1 \
-  --no-cli-pager > /dev/null 2>&1; then
-
-  echo "✅ テーブルは既に存在します。データは保持されています。"
-  echo ""
-  echo "💡 ヒント: データをリセットしたい場合は以下のコマンドを実行してください:"
-  echo "   ./scripts/start-local.sh --reset"
-
+# Step 2: Dockerネットワークを作成（存在しない場合）
+echo "📡 Step 2: Dockerネットワークを確認中..."
+if ! docker network inspect lambda-local >/dev/null 2>&1; then
+  echo "  ネットワークを作成します..."
+  docker network create lambda-local
+  echo "  ✅ lambda-localネットワークを作成しました"
 else
-  # テーブルが存在しない場合のみ初期化
-  echo "📦 DynamoDB テーブルを初期化中..."
-  cd scripts
-  sh init-dynamodb.sh
-  cd ..
-
-  # 3. テストデータを投入
-  echo ""
-  read -p "テストデータを投入しますか？ (y/N): " -n 1 -r
-  echo ""
-  if [[ $REPLY =~ ^[Yy]$ ]]; then
-    cd scripts
-    sh seed-data.sh
-    cd ..
-  fi
+  echo "  ✅ lambda-localネットワークは既に存在します"
 fi
+echo ""
 
+# Step 3: Docker Composeでサービスを起動
+echo "🚀 Step 3: DynamoDB LocalとDynamoDB Adminを起動中..."
+docker-compose up -d
 echo ""
-echo "=================================="
-echo "✅ ローカル開発環境の起動が完了しました！"
-echo "=================================="
+
+# Step 4: DynamoDB Localの起動を待つ
+echo "⏳ Step 4: DynamoDB Localの起動を待機中..."
+echo "  （最大30秒待ちます）"
+for i in {1..30}; do
+  if aws dynamodb list-tables --endpoint-url $ENDPOINT --region $REGION --no-cli-pager >/dev/null 2>&1; then
+    echo "  ✅ DynamoDB Localが起動しました（${i}秒）"
+    break
+  fi
+  if [ $i -eq 30 ]; then
+    echo "  ❌ DynamoDB Localの起動がタイムアウトしました"
+    echo ""
+    echo "  トラブルシューティング:"
+    echo "    docker logs dynamodb-local"
+    echo ""
+    exit 1
+  fi
+  sleep 1
+done
 echo ""
-echo "📍 サービスURL:"
-echo "  - DynamoDB Local:  http://localhost:8000"
-echo "  - DynamoDB Admin:  http://localhost:8002"
+
+# Step 5: DynamoDB Adminの起動を待つ
+echo "⏳ Step 5: DynamoDB Adminの起動を待機中..."
+for i in {1..20}; do
+  if curl -s http://localhost:8002 >/dev/null 2>&1; then
+    echo "  ✅ DynamoDB Adminが起動しました（${i}秒）"
+    break
+  fi
+  if [ $i -eq 20 ]; then
+    echo "  ⚠️  DynamoDB Adminの起動確認がタイムアウトしました"
+    echo "  バックグラウンドで起動中の可能性があります"
+  fi
+  sleep 1
+done
 echo ""
-echo "💾 データの永続化:"
-echo "  データはDocker volumeに保存されており、コンテナを停止しても保持されます。"
-echo "  データをリセットするには: ./scripts/start-local.sh --reset"
+
+# Step 6: テーブルの初期化
+echo "🗄️  Step 6: DynamoDBテーブルを作成中..."
+cd scripts
+sh init-dynamodb.sh
+cd ..
 echo ""
-echo "🚀 SAM Local API を起動するには:"
+
+# Step 7: テストデータの投入
+echo "📝 Step 7: テストデータを投入中..."
+cd scripts
+sh seed-data.sh
+cd ..
+echo ""
+
+echo "======================================"
+echo "✅ ローカル開発環境の起動が完了しました"
+echo "======================================"
+echo ""
+echo "📍 アクセス先:"
+echo "  🌐 DynamoDB Admin GUI: http://localhost:8002"
+echo "     ブラウザで開いてテーブルを確認できます"
+echo ""
+echo "  🔌 DynamoDB API: http://localhost:8000"
+echo "     （ブラウザで開くと400エラー - これは正常です）"
+echo ""
+echo "🔍 動作確認コマンド:"
+echo "  aws dynamodb list-tables \\"
+echo "    --endpoint-url http://localhost:8000 \\"
+echo "    --region ap-northeast-1"
+echo ""
+echo "🚀 次のステップ: SAM Localを起動"
 echo "  sam build"
-echo "  sam local start-api --docker-network lambda-local --env-vars env.json --parameter-overrides file://env.json"
+echo "  sam local start-api \\"
+echo "    --docker-network lambda-local \\"
+echo "    --env-vars env.json"
 echo ""
-echo "📌 起動後、APIは http://127.0.0.1:3000 で利用可能になります"
+echo "  起動後 http://127.0.0.1:3000 でAPIを利用可能"
 echo ""
-echo "🛑 停止するには:"
-echo "  docker-compose stop      # データを保持したまま停止"
-echo "  docker-compose down      # コンテナを削除（データは保持）"
-echo "  docker-compose down -v   # コンテナとデータを完全削除"
+echo "⚠️  注意:"
+echo "  DynamoDBはインメモリモードで動作しています"
+echo "  docker-compose downするとデータは失われます"
+echo ""
+echo "🛑 停止方法:"
+echo "  docker-compose down"
 echo ""

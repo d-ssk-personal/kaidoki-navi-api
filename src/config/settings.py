@@ -24,6 +24,7 @@ class Settings:
 
     # AWS設定
     AWS_REGION: str = os.environ.get('AWS_REGION', 'ap-northeast-1')
+    DYNAMODB_ENDPOINT_URL: Optional[str] = os.environ.get('DYNAMODB_ENDPOINT_URL')  # ローカル開発用
 
     # S3設定
     S3_BUCKET_NAME: str = os.environ.get('S3_BUCKET_NAME', 'chirashi-kitchen-images')
