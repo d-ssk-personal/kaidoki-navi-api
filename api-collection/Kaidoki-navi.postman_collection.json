@@ -1,0 +1,303 @@
+{
+  "info": {
+    "name": "Kaidoki-navi",
+    "_postman_id": "kaidoki-navi-admin-api",
+    "description": "開拓ナビ管理者API コラム管理",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "admin-auth",
+      "item": [
+        {
+          "name": "管理者ログイン",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('access_token', response.token);",
+                  "    console.log('Token saved:', response.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"password\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "auth", "login"]
+            },
+            "description": "管理者がユーザー名とパスワードでログインし、JWTトークンを取得します。\n\nレスポンスのトークンは自動的に環境変数 `access_token` に保存されます。"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "admin-articles",
+      "item": [
+        {
+          "name": "コラム一覧取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/articles/list?page=1&limit=20&status=published",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "articles", "list"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "ページ番号"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "1ページあたりの件数"
+                },
+                {
+                  "key": "status",
+                  "value": "published",
+                  "description": "ステータスフィルター（draft/published/archived）",
+                  "disabled": true
+                },
+                {
+                  "key": "category",
+                  "value": "テクノロジー",
+                  "description": "カテゴリフィルター",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "検索キーワード",
+                  "description": "タイトル・内容の検索",
+                  "disabled": true
+                },
+                {
+                  "key": "tags",
+                  "value": "タグ1,タグ2",
+                  "description": "タグフィルター（カンマ区切り）",
+                  "disabled": true
+                },
+                {
+                  "key": "dateFrom",
+                  "value": "2025-01-01",
+                  "description": "公開日開始",
+                  "disabled": true
+                },
+                {
+                  "key": "dateTo",
+                  "value": "2025-12-31",
+                  "description": "公開日終了",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "コラムの一覧を取得します。\n\nフィルター条件やページネーションを指定できます。"
+          },
+          "response": []
+        },
+        {
+          "name": "コラム詳細取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/articles/list/1",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "articles", "list", "1"]
+            },
+            "description": "指定したIDのコラム詳細情報を取得します。"
+          },
+          "response": []
+        },
+        {
+          "name": "コラム作成",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"新しいコラムのタイトル\",\n  \"content\": \"これはコラムの本文です。Markdownで記述できます。\\n\\n## セクション1\\n\\n内容が入ります。\",\n  \"category\": \"テクノロジー\",\n  \"status\": \"draft\",\n  \"tags\": [\"AI\", \"機械学習\", \"ビジネス\"],\n  \"publishedAt\": \"2025-01-15T00:00:00Z\",\n  \"image\": \"\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/articles/add",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "articles", "add"]
+            },
+            "description": "新しいコラムを作成します。\n\n**必須フィールド:**\n- title: タイトル\n- content: 本文\n- category: カテゴリ\n- status: ステータス（draft/published/archived）\n\n**オプション:**\n- tags: タグの配列\n- publishedAt: 公開日時\n- image: 画像データ（Base64エンコード）"
+          },
+          "response": []
+        },
+        {
+          "name": "コラム更新",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"更新されたタイトル\",\n  \"content\": \"更新された内容です。\",\n  \"category\": \"ビジネス\",\n  \"status\": \"published\",\n  \"tags\": [\"更新\", \"サンプル\"],\n  \"publishedAt\": \"2025-01-20T00:00:00Z\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/articles/update/1",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "articles", "update", "1"]
+            },
+            "description": "既存のコラムを更新します。\n\n更新したいフィールドのみ指定してください。"
+          },
+          "response": []
+        },
+        {
+          "name": "コラム削除",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/articles/delete/1",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "articles", "delete", "1"]
+            },
+            "description": "指定したIDのコラムを削除します。\n\n関連する画像も削除されます。"
+          },
+          "response": []
+        },
+        {
+          "name": "ステータス一括更新",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"articleIds\": [1, 2, 3],\n  \"status\": \"published\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/articles/bulk-status",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "articles", "bulk-status"]
+            },
+            "description": "複数のコラムのステータスを一括で更新します。\n\n**パラメータ:**\n- articleIds: 更新対象のコラムIDの配列\n- status: 新しいステータス（draft/published/archived）"
+          },
+          "response": []
+        },
+        {
+          "name": "記事一括削除",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"articleIds\": [1, 2, 3]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/articles/bulk-delete",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "articles", "bulk-delete"]
+            },
+            "description": "複数のコラムを一括で削除します。\n\n関連する画像も全て削除されます。\n\n**パラメータ:**\n- articleIds: 削除対象のコラムIDの配列"
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}
