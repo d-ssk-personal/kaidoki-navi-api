@@ -135,6 +135,47 @@ Resources:
             Path: /admin/articles/bulk-delete
             Method: delete
 
+  # アカウント管理API（統合版 - コールドスタート対策）
+  AccountsApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: admin.handlers.accounts_router.route_accounts
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AdminsTable
+      Events:
+        AccountsList:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ChirashiKitchenApi
+            Path: /admin/accounts/list
+            Method: get
+        AccountGet:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ChirashiKitchenApi
+            Path: /admin/accounts/list/{accountId}
+            Method: get
+        AccountCreate:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ChirashiKitchenApi
+            Path: /admin/accounts/add
+            Method: post
+        AccountUpdate:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ChirashiKitchenApi
+            Path: /admin/accounts/update/{accountId}
+            Method: put
+        AccountDelete:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ChirashiKitchenApi
+            Path: /admin/accounts/delete/{accountId}
+            Method: delete
+
   # ==================== DynamoDB Tables ====================
 
   # 管理者
